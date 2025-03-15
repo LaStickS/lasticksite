@@ -1,0 +1,74 @@
+@font-face {
+    font-family: "mineten";  
+    src: url("../fonts/minecraft-ten-font-cyrillic.ttf") format("truetype"); 
+    font-style: normal; 
+    font-weight: normal;
+     }
+
+.fstlink {
+    color: rgb(255, 255, 255);
+    text-decoration: none;
+    font-size: 24px;
+    font-family: mineten;
+    margin-top: 70px;
+}
+
+.fstlink:hover {
+    color: rgb(255, 217, 0);
+    text-decoration: underline;
+    cursor: pointer;
+}
+
+body {
+    display: flex;
+    flex-direction: column; /* Меняем направление на вертикальное */
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    margin: 0;
+    /*background:url('https://cdn.culture.ru/images/b21fe04f-c98b-5611-83a2-8d2f9aee1971') no-repeat;*/
+    background: linear-gradient(to right, #0366e7, #00a6ff);
+}  
+
+/*linear-gradient(to right, #0366e7, #00a6ff)*/
+
+h1 {
+    margin: 20px; /* Отступ для заголовка */
+    font-size: 24px; /* Размер шрифта для заголовка */
+    text-align: center; /* Выравнивание текста по центру */
+}
+
+#block1onsite2 {
+    background-image: url(../img/circleimage.jpeg);
+    height: 300px;
+    width: 300px;
+    border: white 2px solid;
+    background-size: cover;
+    
+}
+
+#ttcircle {
+    color: white;
+    font-size: 20px;
+    font-family: mineten;
+    letter-spacing: 2px;
+    width: 300px;
+    height: 75px;
+    border-radius: 10px;
+    background: linear-gradient(to left, #0366e7, #00a6ff );
+    margin-top: 10px;
+    border: solid white 4px;
+}
+
+#stopsound {
+    color: rgb(255, 255, 255);
+    font-size: 20px;
+    font-family: mineten;
+    letter-spacing: 2px;
+    width: 300px;
+    height: 50px;
+    border-radius: 10px ;
+    background: linear-gradient(to left, #0366e7, #00a6ff ) #a91c06;
+    margin-top: 10px;
+    border: solid rgb(255, 255, 255) 4px;
+}
