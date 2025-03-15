@@ -1,0 +1,12 @@
+Uri: https://www.soundtag.ru/
+File Name: C:\Downloaded Web Sites\www.soundtag.ru\index.htm
+Content Type: text/html
+
+Uri: https://www.soundtag.ru/228.mp3
+File Name: C:\Downloaded Web Sites\www.soundtag.ru\228.mp3
+Content Type: audio/mpeg
+
+Uri: https://www.soundtag.ru/sssa.png
+File Name: C:\Downloaded Web Sites\www.soundtag.ru\sssa.png
+Content Type: image/png
+
