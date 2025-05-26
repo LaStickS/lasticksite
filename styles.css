@@ -144,7 +144,29 @@ button:hover {
     animation: piece-capture 0.3s forwards;
 }
 
+#signature {
+    position: fixed;
+    left: 20px;
+    bottom: 20px;
+    font-family: 'Arial', sans-serif;
+    font-size: 14px;
+    color: #010108;
+    background-color: rgba(8, 174, 252, 0.5);
+    padding: 8px 15px;
+    border-radius: 10px; /* Закругление углов */
+    box-shadow: 0 2px 5px rgba(171, 110, 110, 0.2);
+    z-index: 100;
+    transition: all 0.3s ease;
+    backdrop-filter: blur(5px); /* Эффект размытия фона */
+    border: 1px solid rgba(7, 30, 134, 0.1);
+}
 
+#signature:hover {
+    background-color: rgba(0, 0, 0, 0.7);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+    color: #ffffff;
+}
 
 
 
