@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Готический архив</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            background-color: #1a1a1a;
+            font-family: 'Times New Roman', serif;
+            color: #8b0000;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            background-image: 
+                radial-gradient(circle at 25% 25%, #2a2a2a 0%, transparent 50%),
+                radial-gradient(circle at 75% 75%, #2a2a2a 0%, transparent 50%);
+        }
+        
+        .container {
+            max-width: 900px;
+            width: 100%;
+            text-align: center;
+        }
+        
+        h1 {
+            font-size: 3.5rem;
+            margin-bottom: 40px;
+            text-shadow: 0 0 10px #8b0000, 0 0 20px #8b0000;
+            letter-spacing: 3px;
+            text-transform: uppercase;
+            font-weight: normal;
+            position: relative;
+        }
+        
+        h1:before, h1:after {
+            content: "✠";
+            margin: 0 15px;
+            opacity: 0.7;
+        }
+        
+        .image-frame {
+            position: relative;
+            display: inline-block;
+            padding: 20px;
+            border-radius: 2px;
+            box-shadow: 
+                0 0 20px rgba(139, 0, 0, 0.3),
+                0 0 40px rgba(139, 0, 0, 0.2),
+                inset 0 0 20px rgba(139, 0, 0, 0.1);
+            background: 
+                linear-gradient(135deg, transparent 30px, #2a2a2a 30px),
+                linear-gradient(225deg, transparent 30px, #2a2a2a 30px),
+                linear-gradient(315deg, transparent 30px, #2a2a2a 30px),
+                linear-gradient(45deg, transparent 30px, #2a2a2a 30px);
+            background-size: 51% 51%;
+            background-repeat: no-repeat;
+            background-position: top left, top right, bottom right, bottom left;
+            animation: glow 3s ease-in-out infinite alternate;
+            margin-bottom: 30px;
+        }
+        
+        @keyframes glow {
+            from {
+                box-shadow: 
+                    0 0 20px rgba(139, 0, 0, 0.3),
+                    0 0 40px rgba(139, 0, 0, 0.2),
+                    inset 0 0 20px rgba(139, 0, 0, 0.1);
+            }
+            to {
+                box-shadow: 
+                    0 0 25px rgba(139, 0, 0, 0.5),
+                    0 0 50px rgba(139, 0, 0, 0.3),
+                    inset 0 0 25px rgba(139, 0, 0, 0.2);
+            }
+        }
+        
+        .image-frame img {
+            width: 100%;
+            max-width: 595px; /* Ширина А4 в пикселях при 72 DPI */
+            height: auto;
+            max-height: 842px; /* Высота А4 в пикселях при 72 DPI */
+            display: block;
+            border: 1px solid #333;
+            box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.5);
+        }
+        
+        /* Декоративные элементы рамки */
+        .corner {
+            position: absolute;
+            width: 20px;
+            height: 20px;
+            border: 2px solid #8b0000;
+        }
+        
+        .corner-tl {
+            top: 5px;
+            left: 5px;
+            border-right: none;
+            border-bottom: none;
+        }
+        
+        .corner-tr {
+            top: 5px;
+            right: 5px;
+            border-left: none;
+            border-bottom: none;
+        }
+        
+        .corner-bl {
+            bottom: 5px;
+            left: 5px;
+            border-right: none;
+            border-top: none;
+        }
+        
+        .corner-br {
+            bottom: 5px;
+            right: 5px;
+            border-left: none;
+            border-top: none;
+        }
+        
+        /* Текстовый блок */
+        .text-block {
+            background-color: rgba(42, 42, 42, 0.8);
+            border: 1px solid #333;
+            padding: 25px;
+            margin-top: 20px;
+            position: relative;
+            box-shadow: 
+                0 0 15px rgba(139, 0, 0, 0.2),
+                inset 0 0 15px rgba(0, 0, 0, 0.3);
+            text-align: left;
+            max-width: 800px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+        
+        .text-block h2 {
+            font-size: 2rem;
+            margin-bottom: 15px;
+            text-align: center;
+            text-shadow: 0 0 5px #8b0000;
+            border-bottom: 1px solid #8b0000;
+            padding-bottom: 10px;
+        }
+        
+        .text-block p {
+            font-size: 1.2rem;
+            line-height: 1.6;
+            margin-bottom: 15px;
+            text-shadow: 0 0 3px #8b0000;
+        }
+        
+        .text-block:before, .text-block:after {
+            content: "";
+            position: absolute;
+            width: 30px;
+            height: 30px;
+            border: 2px solid #8b0000;
+        }
+        
+        .text-block:before {
+            top: -5px;
+            left: -5px;
+            border-right: none;
+            border-bottom: none;
+        }
+        
+        .text-block:after {
+            bottom: -5px;
+            right: -5px;
+            border-left: none;
+            border-top: none;
+        }
+        
+        /* Адаптивность */
+        @media (max-width: 768px) {
+            h1 {
+                font-size: 2.5rem;
+            }
+            
+            .image-frame {
+                padding: 15px;
+            }
+            
+            .text-block {
+                padding: 20px;
+            }
+            
+            .text-block h2 {
+                font-size: 1.7rem;
+            }
+            
+            .text-block p {
+                font-size: 1.1rem;
+            }
+        }
+        
+        @media (max-width: 480px) {
+            h1 {
+                font-size: 1.8rem;
+            }
+            
+            .image-frame {
+                padding: 10px;
+            }
+            
+            .text-block {
+                padding: 15px;
+            }
+            
+            .text-block h2 {
+                font-size: 1.4rem;
+            }
+            
+            .text-block p {
+                font-size: 1rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Приказ В.В.Мычкина</h1>
+        <div class="image-frame">
+            <div class="corner corner-tl"></div>
+            <div class="corner corner-tr"></div>
+            <div class="corner corner-bl"></div>
+            <div class="corner corner-br"></div>
+            <img src="Images/michkin.png" alt="Готическое изображение">
+        </div>
+        
+        <div class="text-block">
+            <h2>Здравствуйте, досвидания</h2>
+        </div>
+    </div>
+</body>
+</html>
