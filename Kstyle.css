@@ -442,29 +442,6 @@ textarea {
 
 /* ===== НОВЫЕ СТИЛИ ДЛЯ НОТНОГО СТАНА ===== */
 
-.btn-notation {
-    background: #7a5c3a;
-    border: none;
-    width: 100%;
-    padding: 12px;
-    font-size: 1rem;
-    font-weight: bold;
-    color: #fff6e8;
-    border-radius: 60px;
-    cursor: pointer;
-    box-shadow: 0 6px 0 #4a341a;
-    margin: 12px 0;
-    transition: all 0.05s linear;
-}
-
-.btn-notation:active {
-    transform: translateY(3px);
-    box-shadow: 0 3px 0 #4a341a;
-}
-
-.btn-notation:hover {
-    background: #9b6e3e;
-}
 
 .notation-container {
     background: #fdf7e7;
