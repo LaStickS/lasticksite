@@ -37,8 +37,12 @@
     };
     
     // Вспомогательные функции
+    function getNoteIndex(note) {
+        return CHROMATIC.indexOf(note);
+    }
+    
     function transposeNote(note, semitones) {
-        const idx = CHROMATIC.indexOf(note);
+        const idx = getNoteIndex(note);
         if (idx === -1) return note;
         const newIdx = (idx + semitones + 120) % 12;
         return CHROMATIC[newIdx];
@@ -47,59 +51,90 @@
     function getSeventhNoteAndOverblow(scaleNotes) {
         if (scaleNotes.length !== 6) return null;
         const fifthNote = scaleNotes[5];
-        const idxFifth = CHROMATIC.indexOf(fifthNote);
+        const idxFifth = getNoteIndex(fifthNote);
         if (idxFifth === -1) return null;
         const seventhNote = CHROMATIC[(idxFifth + 1) % 12];
         const doubleOverblowNote = CHROMATIC[(idxFifth + 2) % 12];
         return { seventh: seventhNote, double: doubleOverblowNote };
     }
     
-    function getOptimalFingeringWithOverblow(originalNote, targetKuraiKey, baseOctave) {
+    // НОВАЯ ФУНКЦИЯ: поиск оптимального транспонирования для всей мелодии
+    function findBestTranspositionForMelody(originalNotes, targetKuraiKey) {
         const scaleNotes = KURAI_SCALES[targetKuraiKey].notes;
-        if (!scaleNotes.length) return { fingering: '?', transposed: null, wasTransposed: false, shift: 0 };
+        if (!scaleNotes.length) return 0;
         
-        // Прямое попадание в основной звукоряд
-        if (scaleNotes.includes(originalNote)) {
-            const index = scaleNotes.indexOf(originalNote);
+        // Пробуем все возможные сдвиги от -5 до +5
+        let bestShift = 0;
+        let bestScore = -1;
+        
+        for (let shift of [-5, -4, -3, -2, -1, 0, 1, 2, 3, 4, 5]) {
+            let score = 0;
+            for (const note of originalNotes) {
+                const transposedNote = transposeNote(note, shift);
+                // Проверяем, входит ли транспонированная нота в звукоряд
+                if (scaleNotes.includes(transposedNote)) {
+                    score++;
+                } else {
+                    // Проверяем передувы
+                    const fifthNote = scaleNotes[5];
+                    const idxFifth = getNoteIndex(fifthNote);
+                    if (idxFifth !== -1) {
+                        const seventhNote = CHROMATIC[(idxFifth + 1) % 12];
+                        const doubleNote = CHROMATIC[(idxFifth + 2) % 12];
+                        if (transposedNote === seventhNote || transposedNote === doubleNote) {
+                            score += 0.8; // Передувы допустимы, но чуть хуже
+                        }
+                    }
+                }
+            }
+            
+            if (score > bestScore) {
+                bestScore = score;
+                bestShift = shift;
+            }
+        }
+        
+        return bestShift;
+    }
+    
+    // Новая функция: получение аппликатуры с сохранением транспозиции
+    function getFingeringWithGlobalTransposition(originalNote, targetKuraiKey, baseOctave, globalShift) {
+        const scaleNotes = KURAI_SCALES[targetKuraiKey].notes;
+        if (!scaleNotes.length) return { fingering: '?', transposed: null, wasTransposed: false, shift: globalShift };
+        
+        // Применяем глобальную транспозицию
+        const transposedNote = transposeNote(originalNote, globalShift);
+        
+        // Проверяем прямое попадание
+        if (scaleNotes.includes(transposedNote)) {
+            const index = scaleNotes.indexOf(transposedNote);
             let stars = '';
             if (baseOctave === 5) stars = '*';
             else if (baseOctave === 6) stars = '**';
-            return { fingering: index.toString() + stars, transposed: originalNote, wasTransposed: false, shift: 0, overblowNote: false };
+            return { fingering: index.toString() + stars, transposed: transposedNote, wasTransposed: true, shift: globalShift };
         }
         
-        // Передувы на 5-й позиции (септима и децима)
+        // Проверяем передувы
         const fifthNote = scaleNotes[5];
-        const idxFifth = CHROMATIC.indexOf(fifthNote);
+        const idxFifth = getNoteIndex(fifthNote);
         if (idxFifth !== -1) {
             const seventhNote = CHROMATIC[(idxFifth + 1) % 12];
-            if (originalNote === seventhNote) {
+            if (transposedNote === seventhNote) {
                 let stars = '*';
                 if (baseOctave === 5) stars = '**';
                 else if (baseOctave === 6) stars = '***';
-                return { fingering: `5${stars}`, transposed: seventhNote, wasTransposed: false, shift: 0, overblowNote: true };
+                return { fingering: `5${stars}`, transposed: seventhNote, wasTransposed: true, shift: globalShift, overblowNote: true };
             }
             const doubleNote = CHROMATIC[(idxFifth + 2) % 12];
-            if (originalNote === doubleNote) {
+            if (transposedNote === doubleNote) {
                 let stars = '**';
                 if (baseOctave === 5) stars = '***';
                 else if (baseOctave === 6) stars = '****';
-                return { fingering: `5${stars}`, transposed: doubleNote, wasTransposed: false, shift: 0, overblowNote: true };
+                return { fingering: `5${stars}`, transposed: doubleNote, wasTransposed: true, shift: globalShift, overblowNote: true };
             }
         }
         
-        // Транспонирование (поиск ближайшей замены в пределах ±5 полутонов)
-        for (let shift of [-1, 1, -2, 2, -3, 3, -4, 4, -5, 5]) {
-            const transposed = transposeNote(originalNote, shift);
-            if (scaleNotes.includes(transposed)) {
-                const index = scaleNotes.indexOf(transposed);
-                let stars = '';
-                if (baseOctave === 5) stars = '*';
-                else if (baseOctave === 6) stars = '**';
-                return { fingering: index.toString() + stars, transposed: transposed, wasTransposed: true, shift: shift, overblowNote: false };
-            }
-        }
-        
-        return { fingering: '?', transposed: null, wasTransposed: false, shift: 0 };
+        return { fingering: '?', transposed: null, wasTransposed: true, shift: globalShift };
     }
     
     // Парсинг текста с сохранением структуры (ноты + остальной текст)
@@ -133,33 +168,32 @@
     }
     
     // Получение списка нот для отображения на нотном стане
-    function getNoteSequence(text, targetKuraiKey, baseOctave) {
-        if (!text.trim()) return [];
-        const { parsedLines, allNotes } = parseNotesWithFormat(text);
+    function getNoteSequenceFromLine(segments, targetKuraiKey, baseOctave, globalShift) {
         const noteSequence = [];
-        
-        for (const segments of parsedLines) {
-            for (const seg of segments) {
-                if (seg.type === 'note' && seg.normalized) {
-                    const result = getOptimalFingeringWithOverblow(seg.normalized, targetKuraiKey, baseOctave);
-                    noteSequence.push({
-                        note: result.transposed || seg.normalized,
-                        originalNote: seg.normalized,
-                        fingering: result.fingering,
-                        wasTransposed: result.wasTransposed
-                    });
-                }
+        for (const seg of segments) {
+            if (seg.type === 'note' && seg.normalized) {
+                const result = getFingeringWithGlobalTransposition(seg.normalized, targetKuraiKey, baseOctave, globalShift);
+                noteSequence.push({
+                    note: result.transposed || seg.normalized,
+                    originalNote: seg.normalized,
+                    fingering: result.fingering,
+                    wasTransposed: result.wasTransposed,
+                    shift: result.shift
+                });
             }
         }
         return noteSequence;
     }
     
-    // Основная обработка мелодии
+    // Основная обработка мелодии с глобальной транспозицией
     function processMelody(text, targetKuraiKey, baseOctave) {
-        if (!text.trim()) return { tab: '—', originalKey: 'C', allNotes: [], missingCount: 0, transpositionCount: 0, transpositionDetails: [], overblowCount: 0 };
+        if (!text.trim()) return { tab: '—', originalKey: 'C', allNotes: [], missingCount: 0, transpositionCount: 0, transpositionDetails: [], overblowCount: 0, globalShift: 0 };
         
         const { parsedLines, allNotes } = parseNotesWithFormat(text);
         const originalKey = detectKey(allNotes);
+        
+        // Находим оптимальную транспозицию для всей мелодии
+        const globalShift = findBestTranspositionForMelody(allNotes, targetKuraiKey);
         
         const resultLines = [];
         let missingCount = 0;
@@ -175,7 +209,7 @@
                     lineRes += seg.content;
                 } else if (seg.type === 'note' && seg.normalized) {
                     totalNotes++;
-                    const result = getOptimalFingeringWithOverblow(seg.normalized, targetKuraiKey, baseOctave);
+                    const result = getFingeringWithGlobalTransposition(seg.normalized, targetKuraiKey, baseOctave, globalShift);
                     if (result.fingering === '?') {
                         missingCount++;
                         lineRes += '?';
@@ -200,7 +234,8 @@
             totalNotes: totalNotes,
             transpositionCount: transpositionCount,
             transpositionDetails: transpositionDetails,
-            overblowCount: overblowCount
+            overblowCount: overblowCount,
+            globalShift: globalShift
         };
     }
     
@@ -274,213 +309,176 @@
     }
     
     // --------------------------------------------------------------
-    // Функция для отображения нотного стана с использованием VexFlow EasyScore
+    // Функция для отображения нотного стана
     // --------------------------------------------------------------
-  function renderNotation() {
+    function renderNotation() {
         const text = document.getElementById('notesInput').value;
-        const noteSequence = getNoteSequence(text, currentKuraiKey, currentOctave);
+        const lines = text.split(/\r?\n/);
         
-        if (noteSequence.length === 0) {
+        if (!text.trim()) {
             alert('Нет нот для отображения. Пожалуйста, введите ноты.');
             return;
         }
         
-        // Показываем контейнер
         const container = document.getElementById('notationContainer');
         container.style.display = 'block';
         
-        // Очищаем предыдущие рендеры
         const staffCanvas = document.getElementById('staffCanvas');
-        const tabStaffCanvas = document.getElementById('tabStaffCanvas');
         staffCanvas.innerHTML = '';
-        tabStaffCanvas.innerHTML = '';
         
         try {
             const VF = Vex.Flow;
             
-            const width = Math.min(800, window.innerWidth - 100);
-            const height = 200;
+            // Находим максимальное количество нот в строке
+            let maxNotesInLine = 0;
+            const linesNotes = [];
+            const { parsedLines: allParsedLines } = parseNotesWithFormat(text);
             
-            // --------------------------------------------------------------
-            // Верхний стан: обычные ноты с использованием низкоуровневого API
-            // --------------------------------------------------------------
-            const renderer = new VF.Renderer(staffCanvas, VF.Renderer.Backends.SVG);
-            renderer.resize(width, height);
-            const context = renderer.getContext();
-            context.setFont('Arial', 10);
+            // Находим глобальную транспозицию для всей мелодии
+            const { allNotes } = parseNotesWithFormat(text);
+            const globalShift = findBestTranspositionForMelody(allNotes, currentKuraiKey);
             
-            // Создаем нотный стан
-            const stave = new VF.Stave(10, 20, width - 20);
-            stave.addClef('treble').addTimeSignature('4/4');
-            stave.setContext(context).draw();
-            
-            // Создаем ноты
-            const staveNotes = [];
-            for (let i = 0; i < noteSequence.length; i++) {
-                const noteData = noteSequence[i];
-                let noteName = noteData.note;
-                
-                // Преобразуем ноту в формат с октавой
-                let noteWithOctave;
-                switch(noteName) {
-                    case 'C': noteWithOctave = 'c/4'; break;
-                    case 'C#': noteWithOctave = 'c#/4'; break;
-                    case 'D': noteWithOctave = 'd/4'; break;
-                    case 'D#': noteWithOctave = 'd#/4'; break;
-                    case 'E': noteWithOctave = 'e/4'; break;
-                    case 'F': noteWithOctave = 'f/4'; break;
-                    case 'F#': noteWithOctave = 'f#/4'; break;
-                    case 'G': noteWithOctave = 'g/4'; break;
-                    case 'G#': noteWithOctave = 'g#/4'; break;
-                    case 'A': noteWithOctave = 'a/4'; break;
-                    case 'A#': noteWithOctave = 'a#/4'; break;
-                    case 'B': noteWithOctave = 'b/4'; break;
-                    default: noteWithOctave = 'c/4';
+            // Собираем ноты по строкам
+            const textLines = text.split(/\r?\n/);
+            for (let lineIdx = 0; lineIdx < textLines.length; lineIdx++) {
+                const line = textLines[lineIdx];
+                if (line.trim() === '') continue;
+                const { parsedLines } = parseNotesWithFormat(line);
+                let lineNotes = [];
+                for (const segments of parsedLines) {
+                    const notes = getNoteSequenceFromLine(segments, currentKuraiKey, currentOctave, globalShift);
+                    lineNotes = lineNotes.concat(notes);
                 }
-                
-                const staveNote = new VF.StaveNote({
-                    keys: [noteWithOctave],
-                    duration: 'q',
-                    auto_stem: true
-                });
-                
-                // Добавляем диез если нужно
-                if (noteName.includes('#')) {
-                    staveNote.addAccidental(0, new VF.Accidental('#'));
+                if (lineNotes.length > 0) {
+                    linesNotes.push(lineNotes);
+                    if (lineNotes.length > maxNotesInLine) {
+                        maxNotesInLine = lineNotes.length;
+                    }
                 }
-                
-                staveNotes.push(staveNote);
             }
             
-            // Разбиваем ноты на группы по 4 (такты) и создаем несколько голосов
-            const voices = [];
-            for (let i = 0; i < staveNotes.length; i += 4) {
-                const beatCount = Math.min(4, staveNotes.length - i);
-                const voice = new VF.Voice({ num_beats: beatCount, beat_value: 4 });
-                voice.addTickables(staveNotes.slice(i, i + beatCount));
-                voices.push(voice);
-            }
+            const noteWidth = 45;
+            const width = Math.min(1000, Math.max(400, maxNotesInLine * noteWidth + 100));
+            const height = 180;
             
-            // Форматируем и рисуем каждый голос
-            let currentX = 10;
-            for (let i = 0; i < voices.length; i++) {
-                const voice = voices[i];
-                const notesCount = voice.getTickables().length;
-                const staveWidth = Math.min(200, (width - 20) / voices.length);
+            const linesContainer = document.createElement('div');
+            linesContainer.style.display = 'flex';
+            linesContainer.style.flexDirection = 'column';
+            linesContainer.style.gap = '25px';
+            staffCanvas.appendChild(linesContainer);
+            
+            let firstLine = true;
+            
+            for (let lineIdx = 0; lineIdx < linesNotes.length; lineIdx++) {
+                const lineNotes = linesNotes[lineIdx];
+                
+                const lineDiv = document.createElement('div');
+                lineDiv.style.position = 'relative';
+                lineDiv.style.marginBottom = '5px';
+                linesContainer.appendChild(lineDiv);
+                
+                const renderer = new VF.Renderer(lineDiv, VF.Renderer.Backends.SVG);
+                renderer.resize(width, height);
+                const context = renderer.getContext();
+                context.setFont('Arial', 10);
+                
+                const stave = new VF.Stave(10, 20, width - 20);
+                stave.addClef('treble');
+                if (firstLine) {
+                    stave.addTimeSignature('4/4');
+                    firstLine = false;
+                }
+                stave.setContext(context).draw();
+                
+                const staveNotes = [];
+                for (const noteData of lineNotes) {
+                    let noteName = noteData.note;
+                    let noteWithOctave;
+                    switch(noteName) {
+                        case 'C': noteWithOctave = 'c/4'; break;
+                        case 'C#': noteWithOctave = 'c#/4'; break;
+                        case 'D': noteWithOctave = 'd/4'; break;
+                        case 'D#': noteWithOctave = 'd#/4'; break;
+                        case 'E': noteWithOctave = 'e/4'; break;
+                        case 'F': noteWithOctave = 'f/4'; break;
+                        case 'F#': noteWithOctave = 'f#/4'; break;
+                        case 'G': noteWithOctave = 'g/4'; break;
+                        case 'G#': noteWithOctave = 'g#/4'; break;
+                        case 'A': noteWithOctave = 'a/4'; break;
+                        case 'A#': noteWithOctave = 'a#/4'; break;
+                        case 'B': noteWithOctave = 'b/4'; break;
+                        default: noteWithOctave = 'c/4';
+                    }
+                    
+                    const staveNote = new VF.StaveNote({
+                        keys: [noteWithOctave],
+                        duration: 'q',
+                        auto_stem: true
+                    });
+                    
+                    if (noteName.includes('#')) {
+                        staveNote.addAccidental(0, new VF.Accidental('#'));
+                    }
+                    
+                    staveNotes.push(staveNote);
+                }
+                
+                const voice = new VF.Voice({ num_beats: staveNotes.length, beat_value: 4 });
+                voice.addTickables(staveNotes);
                 
                 const formatter = new VF.Formatter();
                 formatter.joinVoices([voice]).formatToStave([voice], stave);
                 voice.draw(context, stave);
-            }
-            
-            // --------------------------------------------------------------
-            // Нижний стан: табулатура для курая
-            // --------------------------------------------------------------
-            const tabRenderer = new VF.Renderer(tabStaffCanvas, VF.Renderer.Backends.SVG);
-            tabRenderer.resize(width, 150);
-            const tabContext = tabRenderer.getContext();
-            tabContext.setFont('Arial', 12);
-            
-            // Создаем табулатурный стан
-            const tabStave = new VF.TabStave(10, 10, width - 20);
-            tabStave.addTabGlyph();
-            tabStave.setContext(tabContext).draw();
-            
-            // Создаем табулатурные ноты
-            const tabNotes = [];
-            for (let i = 0; i < noteSequence.length; i++) {
-                const noteData = noteSequence[i];
-                let fingeringValue = noteData.fingering.replace(/\*/g, '');
-                if (fingeringValue === '?') fingeringValue = '0';
-                const fretNum = parseInt(fingeringValue) || 0;
                 
-                const tabNote = new VF.TabNote({
-                    positions: [{ str: 1, fret: fretNum }],
-                    duration: 'q'
-                });
-                
-                tabNotes.push(tabNote);
+                setTimeout(() => {
+                    const svg = lineDiv.querySelector('svg');
+                    if (svg) {
+                        const noteHeads = svg.querySelectorAll('.vf-notehead');
+                        const containerRect = lineDiv.getBoundingClientRect();
+                        
+                        const labelsWrapper = document.createElement('div');
+                        labelsWrapper.style.position = 'relative';
+                        labelsWrapper.style.marginTop = '5px';
+                        labelsWrapper.style.height = '30px';
+                        labelsWrapper.style.width = width + 'px';
+                        lineDiv.appendChild(labelsWrapper);
+                        
+                        for (let i = 0; i < lineNotes.length && i < noteHeads.length; i++) {
+                            const rect = noteHeads[i].getBoundingClientRect();
+                            
+                            const label = document.createElement('div');
+                            label.textContent = lineNotes[i].fingering;
+                            label.style.position = 'absolute';
+                            label.style.left = (rect.left - containerRect.left + rect.width / 2 - 15) + 'px';
+                            label.style.top = '0px';
+                            label.style.width = '30px';
+                            label.style.textAlign = 'center';
+                            label.style.color = '#b45f2b';
+                            label.style.backgroundColor = '#fae6cd';
+                            label.style.borderRadius = '20px';
+                            label.style.padding = '3px 5px';
+                            label.style.fontSize = '13px';
+                            label.style.fontWeight = 'bold';
+                            label.style.fontFamily = 'monospace';
+                            label.style.boxShadow = '0 1px 2px rgba(0,0,0,0.15)';
+                            label.style.border = '1px solid #c69954';
+                            
+                            labelsWrapper.appendChild(label);
+                        }
+                    }
+                }, 100);
             }
             
-            // Разбиваем табулатурные ноты на группы по 4
-            const tabVoices = [];
-            for (let i = 0; i < tabNotes.length; i += 4) {
-                const beatCount = Math.min(4, tabNotes.length - i);
-                const tabVoice = new VF.Voice({ num_beats: beatCount, beat_value: 4 });
-                tabVoice.addTickables(tabNotes.slice(i, i + beatCount));
-                tabVoices.push(tabVoice);
+            // Показываем информацию о транспозиции
+            const transposeInfo = document.getElementById('transposeInfo');
+            if (globalShift !== 0) {
+                transposeInfo.innerHTML += `<span style="background:#e9dccd; padding:2px 8px; border-radius:20px; margin-left:10px;">🎵 Транспонировано на ${globalShift > 0 ? '+' : ''}${globalShift} полутонов</span>`;
             }
-            
-            // Форматируем и рисуем табулатуру
-            for (let i = 0; i < tabVoices.length; i++) {
-                const tabVoice = tabVoices[i];
-                const formatter = new VF.Formatter();
-                formatter.joinVoices([tabVoice]).formatToStave([tabVoice], tabStave);
-                tabVoice.draw(tabContext, tabStave);
-            }
-            
-            // Добавляем подписи под нотами
-            setTimeout(() => {
-                addLabelsUnderNotes(staffCanvas, noteSequence);
-            }, 200);
             
         } catch (error) {
             console.error('Ошибка при рендеринге нот:', error);
             const staffCanvas = document.getElementById('staffCanvas');
-            staffCanvas.innerHTML = `<div class="error-message">Ошибка при создании нотного стана: ${error.message}<br>Пожалуйста, проверьте формат нот.</div>`;
-        }
-    }
-    
-    // Функция для добавления подписей (аппликатуры) под нотами
-    function addLabelsUnderNotes(container, noteSequence) {
-        const svg = container.querySelector('svg');
-        if (!svg) return;
-        
-        // Удаляем старый контейнер с подписями
-        const oldContainer = container.querySelector('.labels-container');
-        if (oldContainer) oldContainer.remove();
-        
-        // Создаем контейнер для подписей
-        const labelsContainer = document.createElement('div');
-        labelsContainer.className = 'labels-container';
-        labelsContainer.style.position = 'relative';
-        labelsContainer.style.marginTop = '10px';
-        labelsContainer.style.textAlign = 'center';
-        labelsContainer.style.fontFamily = 'monospace';
-        labelsContainer.style.fontSize = '14px';
-        labelsContainer.style.fontWeight = 'bold';
-        container.appendChild(labelsContainer);
-        
-        // Находим все нотные головки
-        const noteHeads = svg.querySelectorAll('.vf-notehead');
-        
-        for (let i = 0; i < noteSequence.length && i < noteHeads.length; i++) {
-            const noteData = noteSequence[i];
-            const noteElement = noteHeads[i];
-            
-            if (noteElement && noteElement.getBoundingClientRect) {
-                const rect = noteElement.getBoundingClientRect();
-                const containerRect = container.getBoundingClientRect();
-                
-                const label = document.createElement('span');
-                label.textContent = noteData.fingering;
-                label.style.position = 'absolute';
-                label.style.left = (rect.left - containerRect.left + rect.width / 2 - 15) + 'px';
-                label.style.top = '65px';
-                label.style.width = '30px';
-                label.style.textAlign = 'center';
-                label.style.color = '#b45f2b';
-                label.style.backgroundColor = '#fae6cd';
-                label.style.borderRadius = '20px';
-                label.style.padding = '4px 6px';
-                label.style.fontSize = '12px';
-                label.style.fontWeight = 'bold';
-                label.style.boxShadow = '0 1px 3px rgba(0,0,0,0.2)';
-                label.style.border = '1px solid #c69954';
-                label.style.zIndex = '100';
-                
-                labelsContainer.appendChild(label);
-            }
+            staffCanvas.innerHTML = `<div class="error-message">Ошибка при создании нотного стана: ${error.message}</div>`;
         }
     }
     
@@ -501,12 +499,15 @@
         
         let infoText = '';
         const scaleName = KURAI_SCALES[currentKuraiKey]?.name || currentKuraiKey;
+        if (result.globalShift !== 0) {
+            infoText = `🎵 Транспонировано на ${result.globalShift > 0 ? '+' : ''}${result.globalShift} полутонов. `;
+        }
         if (result.transpositionCount === 0 && result.missingCount === 0 && result.overblowCount === 0)
-            infoText = `✅ Все ноты есть в звукоряде ${scaleName}. Передувы не нужны.`;
+            infoText += `✅ Все ноты есть в звукоряде ${scaleName}.`;
         else if (result.overblowCount > 0)
-            infoText = `🎵 Использовано передуваний: ${result.overblowCount}. Транспонировано: ${result.transpositionCount}.`;
+            infoText += `🎵 Использовано передуваний: ${result.overblowCount}.`;
         else if (result.transpositionCount > 0)
-            infoText = `🎵 Транспонировано ${result.transpositionCount} из ${result.totalNotes} нот.`;
+            infoText += `🎵 Транспонировано ${result.transpositionCount} из ${result.totalNotes} нот.`;
         if (result.missingCount > 0) infoText += ` ⚠️ ${result.missingCount} нот не найдены (?)`;
         document.getElementById('transposeInfo').innerHTML = infoText || 'Готово';
     }
@@ -543,29 +544,25 @@
         setTimeout(() => btn.innerHTML = '📋 Копировать', 1500);
     });
     
-    // Новая кнопка для отображения нотного стана
     document.getElementById('showNotationBtn').addEventListener('click', () => {
         renderNotation();
     });
     
-    // Кнопка закрытия нотного стана
     document.getElementById('closeNotationBtn').addEventListener('click', () => {
         document.getElementById('notationContainer').style.display = 'none';
     });
     
-    // Пример мелодии (курайная тема)
-    document.getElementById('notesInput').value = `C D C F E F G F E D C
-C D C F E F G F E D A
+    // Пример мелодии
+    document.getElementById('notesInput').value = `D C D D# F D# D C 
+D C A# A# A# A# A A#
 
-E E F C 
-C C D C B E C
-E E F C 
-C C D C B F E
-E E F C 
-C C D C B E C
-E E F C 
-C C D C B E C`;
+D C A# D# D# D# A A#
+D C A# D# D# D# A A#
+F F D# D# D D# D A# 
+A# D D C A A#
+F F D# D# D D# D A#
+A# D D C A A#`;
     
-    currentKuraiKey = 'C';
+    currentKuraiKey = 'G#';
     performRender();
 })();
