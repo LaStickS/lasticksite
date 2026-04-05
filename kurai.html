@@ -76,7 +76,7 @@
             <div class="tab-preview" id="tabResult">—</div>
             
             <!-- Новая кнопка для отображения нотного стана -->
-            <button class="btn-notation" id="showNotationBtn">🎼 Показать нотный стан с нотами 🎵</button>
+            <button class="btn-convert" id="showNotationBtn">🎼 Показать нотный стан с нотами 🎵</button>
             
             <!-- Контейнер для нотного стана VexFlow -->
             <div id="notationContainer" class="notation-container" style="display: none;">
@@ -85,9 +85,12 @@
                 <button class="close-notation-btn" id="closeNotationBtn">✖ Закрыть</button>
             </div>
             
-            <div style="display: flex; justify-content: flex-end;">
-                <button class="copy-btn" id="copyBtn">📋 Копировать</button>
+            <!-- Кнопки в одной строке: Заменить все (слева) и Копировать (справа) -->
+            <div style="display: flex; justify-content: flex-end; gap: 12px; margin-top: 12px;">
+                <button id="actionBtn" class="copy-btn" style="margin-left: auto;">🔧 Заменить все ?</button>
+                <button id="copyBtn" class="copy-btn">📋 Копировать</button>
             </div>
+            
             <div id="transposeInfo" class="transpose-info"></div>
             <div class="footer-note">
                 <strong>Курай Таб 🍃</strong><br>

@@ -54,9 +54,10 @@
         return { seventh: seventhNote, double: doubleOverblowNote };
     }
     
-    function getOptimalFingeringWithOverblow(originalNote, targetKuraiKey, baseOctave) {
+    // Функция для получения аппликатуры БЕЗ автоматической замены (строгий режим)
+    function getExactFingering(originalNote, targetKuraiKey, baseOctave) {
         const scaleNotes = KURAI_SCALES[targetKuraiKey].notes;
-        if (!scaleNotes.length) return { fingering: '?', transposed: null, wasTransposed: false, shift: 0 };
+        if (!scaleNotes.length) return { fingering: '?', transposed: null, wasTransposed: false, shift: 0, exactMatch: false };
         
         // Прямое попадание в основной звукоряд
         if (scaleNotes.includes(originalNote)) {
@@ -64,10 +65,10 @@
             let stars = '';
             if (baseOctave === 5) stars = '*';
             else if (baseOctave === 6) stars = '**';
-            return { fingering: index.toString() + stars, transposed: originalNote, wasTransposed: false, shift: 0, overblowNote: false };
+            return { fingering: index.toString() + stars, transposed: originalNote, wasTransposed: false, shift: 0, exactMatch: true, overblowNote: false };
         }
         
-        // Передувы на 5-й позиции (септима и децима)
+        // Проверка передувов на 5-й позиции
         const fifthNote = scaleNotes[5];
         const idxFifth = CHROMATIC.indexOf(fifthNote);
         if (idxFifth !== -1) {
@@ -76,33 +77,54 @@
                 let stars = '*';
                 if (baseOctave === 5) stars = '**';
                 else if (baseOctave === 6) stars = '***';
-                return { fingering: `5${stars}`, transposed: seventhNote, wasTransposed: false, shift: 0, overblowNote: true };
+                return { fingering: `5${stars}`, transposed: seventhNote, wasTransposed: false, shift: 0, exactMatch: true, overblowNote: true };
             }
             const doubleNote = CHROMATIC[(idxFifth + 2) % 12];
             if (originalNote === doubleNote) {
                 let stars = '**';
                 if (baseOctave === 5) stars = '***';
                 else if (baseOctave === 6) stars = '****';
-                return { fingering: `5${stars}`, transposed: doubleNote, wasTransposed: false, shift: 0, overblowNote: true };
+                return { fingering: `5${stars}`, transposed: doubleNote, wasTransposed: false, shift: 0, exactMatch: true, overblowNote: true };
             }
         }
         
-        // Транспонирование (поиск ближайшей замены в пределах ±5 полутонов)
-        for (let shift of [-1, 1, -2, 2, -3, 3, -4, 4, -5, 5]) {
-            const transposed = transposeNote(originalNote, shift);
-            if (scaleNotes.includes(transposed)) {
-                const index = scaleNotes.indexOf(transposed);
-                let stars = '';
-                if (baseOctave === 5) stars = '*';
-                else if (baseOctave === 6) stars = '**';
-                return { fingering: index.toString() + stars, transposed: transposed, wasTransposed: true, shift: shift, overblowNote: false };
-            }
-        }
-        
-        return { fingering: '?', transposed: null, wasTransposed: false, shift: 0 };
+        // Нота недоступна
+        return { fingering: '?', transposed: null, wasTransposed: false, shift: 0, exactMatch: false, overblowNote: false };
     }
     
-    // Парсинг текста с сохранением структуры (ноты + остальной текст)
+    // Функция для поиска ближайшей доступной ноты
+    function findClosestNote(originalNote, targetKuraiKey) {
+        const scaleNotes = KURAI_SCALES[targetKuraiKey].notes;
+        const allAvailableNotes = [...scaleNotes];
+        
+        // Добавляем передувы в доступные ноты
+        const fifthNote = scaleNotes[5];
+        const idxFifth = CHROMATIC.indexOf(fifthNote);
+        if (idxFifth !== -1) {
+            allAvailableNotes.push(CHROMATIC[(idxFifth + 1) % 12]);
+            allAvailableNotes.push(CHROMATIC[(idxFifth + 2) % 12]);
+        }
+        
+        let closestNote = null;
+        let minDistance = 100;
+        
+        for (const availableNote of allAvailableNotes) {
+            const originalIdx = CHROMATIC.indexOf(originalNote);
+            const availableIdx = CHROMATIC.indexOf(availableNote);
+            if (originalIdx !== -1 && availableIdx !== -1) {
+                let distance = Math.abs(originalIdx - availableIdx);
+                distance = Math.min(distance, 12 - distance);
+                if (distance < minDistance) {
+                    minDistance = distance;
+                    closestNote = availableNote;
+                }
+            }
+        }
+        
+        return { note: closestNote, distance: minDistance };
+    }
+    
+    // Парсинг текста с сохранением структуры
     function parseNotesWithFormat(text) {
         const lines = text.split(/\r?\n/);
         const parsedLines = [];
@@ -133,25 +155,99 @@
     }
     
     // Получение списка нот для отображения на нотном стане
-    function getNoteSequenceFromLine(segments, targetKuraiKey, baseOctave) {
+    function getNoteSequenceFromLine(segments, targetKuraiKey, baseOctave, replacements = {}) {
         const noteSequence = [];
+        let noteIndex = 0;
         for (const seg of segments) {
             if (seg.type === 'note' && seg.normalized) {
-                const result = getOptimalFingeringWithOverblow(seg.normalized, targetKuraiKey, baseOctave);
+                const positionKey = `0:${noteIndex}`;
+                let result;
+                if (replacements[positionKey]) {
+                    const rep = replacements[positionKey];
+                    result = { fingering: rep.fingering, transposed: rep.transposedNote, wasTransposed: true };
+                } else {
+                    result = getExactFingering(seg.normalized, targetKuraiKey, baseOctave);
+                }
                 noteSequence.push({
                     note: result.transposed || seg.normalized,
                     originalNote: seg.normalized,
                     fingering: result.fingering,
                     wasTransposed: result.wasTransposed
                 });
+                noteIndex++;
             }
         }
         return noteSequence;
     }
     
-    // Основная обработка мелодии
-    function processMelody(text, targetKuraiKey, baseOctave) {
-        if (!text.trim()) return { tab: '—', originalKey: 'C', allNotes: [], missingCount: 0, transpositionCount: 0, transpositionDetails: [], overblowCount: 0 };
+    // Получение всех проблемных нот с их позициями
+    function getAllProblemNotes(text, targetKuraiKey, baseOctave) {
+        if (!text.trim()) return [];
+        
+        const { parsedLines } = parseNotesWithFormat(text);
+        const problemNotes = [];
+        
+        for (let lineIdx = 0; lineIdx < parsedLines.length; lineIdx++) {
+            const segments = parsedLines[lineIdx];
+            let noteIndex = 0;
+            
+            for (let colIdx = 0; colIdx < segments.length; colIdx++) {
+                const seg = segments[colIdx];
+                if (seg.type === 'note' && seg.normalized) {
+                    const positionKey = `${lineIdx}:${noteIndex}`;
+                    const result = getExactFingering(seg.normalized, targetKuraiKey, baseOctave);
+                    
+                    if (result.fingering === '?') {
+                        problemNotes.push({
+                            position: positionKey,
+                            originalNote: seg.normalized,
+                            line: lineIdx,
+                            noteIndex: noteIndex
+                        });
+                    }
+                    noteIndex++;
+                }
+            }
+        }
+        
+        return problemNotes;
+    }
+    
+    // Автоматическая замена всех проблемных нот (без подтверждения)
+    function autoReplaceAllProblems() {
+        const text = document.getElementById('notesInput').value;
+        const problemNotes = getAllProblemNotes(text, currentKuraiKey, currentOctave);
+        
+        if (problemNotes.length === 0) {
+            return; // Просто ничего не делаем
+        }
+        
+        for (const problem of problemNotes) {
+            const closest = findClosestNote(problem.originalNote, currentKuraiKey);
+            if (closest.note) {
+                const result = getExactFingering(closest.note, currentKuraiKey, currentOctave);
+                manualReplacements[problem.position] = {
+                    fingering: result.fingering,
+                    transposedNote: closest.note,
+                    originalNote: problem.originalNote
+                };
+            }
+        }
+        
+        performRenderWithReplacements();
+    }
+    
+    // Сброс всех замен (без подтверждения)
+    function resetAllReplacements() {
+        if (Object.keys(manualReplacements).length > 0) {
+            manualReplacements = {};
+            performRenderWithReplacements();
+        }
+    }
+    
+    // Основная обработка мелодии с поддержкой ручных замен
+    function processMelodyWithReplacements(text, targetKuraiKey, baseOctave, replacements = {}) {
+        if (!text.trim()) return { tab: '—', originalKey: 'C', allNotes: [], missingCount: 0, transpositionCount: 0, transpositionDetails: [], overblowCount: 0, problemNotes: [] };
         
         const { parsedLines, allNotes } = parseNotesWithFormat(text);
         const originalKey = detectKey(allNotes);
@@ -162,19 +258,48 @@
         let transpositionCount = 0;
         let overblowCount = 0;
         const transpositionDetails = [];
+        const problemNotes = [];
         
-        for (const segments of parsedLines) {
+        for (let lineIdx = 0; lineIdx < parsedLines.length; lineIdx++) {
+            const segments = parsedLines[lineIdx];
             let lineRes = '';
-            for (const seg of segments) {
+            let noteIndexInLine = 0;
+            
+            for (let colIdx = 0; colIdx < segments.length; colIdx++) {
+                const seg = segments[colIdx];
                 if (seg.type === 'text') {
                     lineRes += seg.content;
                 } else if (seg.type === 'note' && seg.normalized) {
                     totalNotes++;
-                    const result = getOptimalFingeringWithOverblow(seg.normalized, targetKuraiKey, baseOctave);
-                    if (result.fingering === '?') {
-                        missingCount++;
-                        lineRes += '?';
+                    const positionKey = `${lineIdx}:${noteIndexInLine}`;
+                    
+                    let result;
+                    if (replacements[positionKey]) {
+                        const replacement = replacements[positionKey];
+                        result = { 
+                            fingering: replacement.fingering, 
+                            transposed: replacement.transposedNote,
+                            wasTransposed: true,
+                            shift: 0,
+                            overblowNote: replacement.fingering.includes('*')
+                        };
+                        transpositionCount++;
+                        lineRes += result.fingering;
                     } else {
+                        result = getExactFingering(seg.normalized, targetKuraiKey, baseOctave);
+                        if (result.fingering === '?') {
+                            missingCount++;
+                            problemNotes.push({
+                                line: lineIdx,
+                                col: colIdx,
+                                noteIndex: noteIndexInLine,
+                                position: positionKey,
+                                originalNote: seg.normalized
+                            });
+                            lineRes += '?';
+                            noteIndexInLine++;
+                            continue;
+                        }
                         lineRes += result.fingering;
                         if (result.wasTransposed) {
                             transpositionCount++;
@@ -182,6 +307,7 @@
                         }
                         if (result.overblowNote) overblowCount++;
                     }
+                    noteIndexInLine++;
                 }
             }
             resultLines.push(lineRes);
@@ -195,7 +321,8 @@
             totalNotes: totalNotes,
             transpositionCount: transpositionCount,
             transpositionDetails: transpositionDetails,
-            overblowCount: overblowCount
+            overblowCount: overblowCount,
+            problemNotes: problemNotes
         };
     }
     
@@ -262,14 +389,15 @@
                 btn.classList.add('active');
                 document.getElementById('keySelector').value = m.key;
                 currentKuraiKey = m.key;
-                performRender();
+                manualReplacements = {};
+                performRenderWithReplacements();
             });
             container.appendChild(btn);
         });
     }
     
     // --------------------------------------------------------------
-    // Функция для отображения нотного стана (только ноты, без табулатуры)
+    // Функция для отображения нотного стана
     // --------------------------------------------------------------
     function renderNotation() {
         const text = document.getElementById('notesInput').value;
@@ -280,18 +408,15 @@
             return;
         }
         
-        // Показываем контейнер
         const container = document.getElementById('notationContainer');
         container.style.display = 'block';
         
-        // Очищаем предыдущие рендеры
         const staffCanvas = document.getElementById('staffCanvas');
         staffCanvas.innerHTML = '';
         
         try {
             const VF = Vex.Flow;
             
-            // Находим максимальное количество нот в строке для единой ширины
             let maxNotesInLine = 0;
             const linesNotes = [];
             
@@ -300,7 +425,7 @@
                 const { parsedLines } = parseNotesWithFormat(line);
                 let lineNotes = [];
                 for (const segments of parsedLines) {
-                    const notes = getNoteSequenceFromLine(segments, currentKuraiKey, currentOctave);
+                    const notes = getNoteSequenceFromLine(segments, currentKuraiKey, currentOctave, manualReplacements);
                     lineNotes = lineNotes.concat(notes);
                 }
                 if (lineNotes.length > 0) {
@@ -311,12 +436,10 @@
                 }
             }
             
-            // Рассчитываем единую ширину для всех строк
             const noteWidth = 45;
             const width = Math.min(1000, Math.max(400, maxNotesInLine * noteWidth + 100));
             const height = 180;
             
-            // Создаем контейнер для всех строк
             const linesContainer = document.createElement('div');
             linesContainer.style.display = 'flex';
             linesContainer.style.flexDirection = 'column';
@@ -328,19 +451,16 @@
             for (let lineIdx = 0; lineIdx < linesNotes.length; lineIdx++) {
                 const lineNotes = linesNotes[lineIdx];
                 
-                // Создаем контейнер для строки
                 const lineDiv = document.createElement('div');
                 lineDiv.style.position = 'relative';
                 lineDiv.style.marginBottom = '5px';
                 linesContainer.appendChild(lineDiv);
                 
-                // Создаем рендерер
                 const renderer = new VF.Renderer(lineDiv, VF.Renderer.Backends.SVG);
                 renderer.resize(width, height);
                 const context = renderer.getContext();
                 context.setFont('Arial', 10);
                 
-                // Создаем нотный стан
                 const stave = new VF.Stave(10, 20, width - 20);
                 stave.addClef('treble');
                 if (firstLine) {
@@ -349,7 +469,6 @@
                 }
                 stave.setContext(context).draw();
                 
-                // Создаем ноты для этой строки
                 const staveNotes = [];
                 for (const noteData of lineNotes) {
                     let noteName = noteData.note;
@@ -383,7 +502,6 @@
                     staveNotes.push(staveNote);
                 }
                 
-                // Форматируем ноты в строке
                 const voice = new VF.Voice({ num_beats: staveNotes.length, beat_value: 4 });
                 voice.addTickables(staveNotes);
                 
@@ -391,15 +509,12 @@
                 formatter.joinVoices([voice]).formatToStave([voice], stave);
                 voice.draw(context, stave);
                 
-                // Добавляем подписи (аппликатуру) ПОД нотным станом
                 setTimeout(() => {
                     const svg = lineDiv.querySelector('svg');
                     if (svg) {
-                        // Находим все нотные головки
                         const noteHeads = svg.querySelectorAll('.vf-notehead');
                         const containerRect = lineDiv.getBoundingClientRect();
                         
-                        // Создаем контейнер для подписей под станом
                         const labelsWrapper = document.createElement('div');
                         labelsWrapper.style.position = 'relative';
                         labelsWrapper.style.marginTop = '5px';
@@ -445,11 +560,48 @@
     // --------------------------------------------------------------
     let currentKuraiKey = 'C';
     let currentOctave = 4;
+    let manualReplacements = {};
     
-    function performRender() {
+    // Функция обновления состояния кнопки actionBtn
+    function updateActionButton() {
         const text = document.getElementById('notesInput').value;
-        const result = processMelody(text, currentKuraiKey, currentOctave);
-        document.getElementById('tabResult').innerText = result.tab;
+        const hasProblemNotes = getAllProblemNotes(text, currentKuraiKey, currentOctave).length > 0;
+        const hasReplacements = Object.keys(manualReplacements).length > 0;
+        
+        const actionBtn = document.getElementById('actionBtn');
+        if (actionBtn) {
+            // Если есть замены - показываем кнопку "Вернуть"
+            if (hasReplacements) {
+                actionBtn.style.display = 'inline-block';
+                actionBtn.innerHTML = `🔄 Вернуть (${Object.keys(manualReplacements).length})`;
+                actionBtn.title = 'Сбросить все замены';
+                actionBtn.disabled = false;
+            } 
+            // Если нет замен, но есть проблемные ноты - показываем "Заменить все ?"
+            else if (hasProblemNotes) {
+                actionBtn.style.display = 'inline-block';
+                const problemCount = getAllProblemNotes(text, currentKuraiKey, currentOctave).length;
+                actionBtn.innerHTML = `🔧 Заменить все ? (${problemCount})`;
+                actionBtn.title = 'Автоматически заменить все недоступные ноты';
+                actionBtn.disabled = false;
+            } 
+            // Если все ноты доступны и нет замен - скрываем кнопку
+            else {
+                actionBtn.style.display = 'none';
+            }
+        }
+    }
+    
+    function performRenderWithReplacements() {
+        const text = document.getElementById('notesInput').value;
+        const result = processMelodyWithReplacements(text, currentKuraiKey, currentOctave, manualReplacements);
+        
+        // Отображаем табулатуру с подсветкой проблемных мест
+        let tabHtml = result.tab;
+        if (result.missingCount > 0) {
+            tabHtml = tabHtml.replace(/\?/g, '<span style="color: #c0392b; background: #ffe0e0; display: inline-block; min-width: 20px; text-align: center; border-radius: 4px;">?</span>');
+        }
+        document.getElementById('tabResult').innerHTML = tabHtml;
         document.getElementById('detectedKey').innerText = result.originalKey;
         updateMappingGrid(currentKuraiKey, currentOctave);
         updateSuggestions(text, currentKuraiKey);
@@ -457,61 +609,109 @@
         
         let infoText = '';
         const scaleName = KURAI_SCALES[currentKuraiKey]?.name || currentKuraiKey;
-        if (result.transpositionCount === 0 && result.missingCount === 0 && result.overblowCount === 0)
+        
+        if (result.missingCount > 0) {
+            infoText = `⚠️ ${result.missingCount} нот недоступны в строе ${scaleName}. Нажмите "Заменить все ?" для автоподбора.`;
+        } else if (result.transpositionCount === 0 && result.overblowCount === 0) {
             infoText = `✅ Все ноты есть в звукоряде ${scaleName}. Передувы не нужны.`;
-        else if (result.overblowCount > 0)
-            infoText = `🎵 Использовано передуваний: ${result.overblowCount}. Транспонировано: ${result.transpositionCount}.`;
-        else if (result.transpositionCount > 0)
-            infoText = `🎵 Транспонировано ${result.transpositionCount} из ${result.totalNotes} нот.`;
-        if (result.missingCount > 0) infoText += ` ⚠️ ${result.missingCount} нот не найдены (?)`;
-        document.getElementById('transposeInfo').innerHTML = infoText || 'Готово';
+        } else if (result.overblowCount > 0) {
+            infoText = `🎵 Использовано передуваний: ${result.overblowCount}. Заменено: ${result.transpositionCount}.`;
+        } else if (result.transpositionCount > 0) {
+            infoText = `🎵 Заменено ${result.transpositionCount} из ${result.totalNotes} нот.`;
+        } else {
+            infoText = 'Готово';
+        }
+        
+        document.getElementById('transposeInfo').innerHTML = infoText;
+        
+        // Показываем детали транспонирования если есть
+        if (result.transpositionDetails.length > 0 && result.transpositionCount > 0) {
+            const detailsHtml = `<details style="margin-top: 8px; font-size: 0.75rem; color: #8b6946;"><summary>Детали замен (${result.transpositionCount})</summary>${result.transpositionDetails.slice(0, 10).join('<br>')}${result.transpositionDetails.length > 10 ? '<br>...' : ''}</details>`;
+            document.getElementById('transposeInfo').innerHTML += detailsHtml;
+        }
+        
+        // Обновляем состояние кнопки actionBtn
+        updateActionButton();
     }
     
     // --------------------------------------------------------------
-    // 3. Инициализация DOM-событий и пример по умолчанию
+    // 3. Инициализация DOM-событий
     // --------------------------------------------------------------
-    document.getElementById('convertBtn').addEventListener('click', performRender);
-    document.getElementById('applyKuraiBtn').addEventListener('click', () => {
-        currentKuraiKey = document.getElementById('keySelector').value;
-        performRender();
-    });
+    function initEventHandlers() {
+        document.getElementById('convertBtn').addEventListener('click', () => {
+            performRenderWithReplacements();
+        });
+        
+        document.getElementById('applyKuraiBtn').addEventListener('click', () => {
+            currentKuraiKey = document.getElementById('keySelector').value;
+            manualReplacements = {};
+            performRenderWithReplacements();
+        });
+        
+        document.getElementById('octaveDown').addEventListener('click', () => { 
+            if (currentOctave > 3) { 
+                currentOctave--; 
+                document.getElementById('currentOctave').innerText = currentOctave; 
+                manualReplacements = {};
+                performRenderWithReplacements(); 
+            } 
+        });
+        
+        document.getElementById('octaveUp').addEventListener('click', () => { 
+            if (currentOctave < 6) { 
+                currentOctave++; 
+                document.getElementById('currentOctave').innerText = currentOctave; 
+                manualReplacements = {};
+                performRenderWithReplacements(); 
+            } 
+        });
+        
+        document.getElementById('copyBtn').addEventListener('click', async () => {
+            const tabDiv = document.getElementById('tabResult');
+            const txt = tabDiv.innerText || tabDiv.textContent;
+            if (!txt || txt === '—') return alert('Нет данных');
+            await navigator.clipboard.writeText(txt);
+            const btn = document.getElementById('copyBtn');
+            btn.innerHTML = '📄 Скопировано!';
+            setTimeout(() => btn.innerHTML = '📋 Копировать', 1500);
+        });
+        
+        document.getElementById('showNotationBtn').addEventListener('click', () => {
+            renderNotation();
+        });
+        
+        document.getElementById('closeNotationBtn').addEventListener('click', () => {
+            document.getElementById('notationContainer').style.display = 'none';
+        });
+        
+        // Универсальная кнопка: либо замена, либо возврат
+        document.getElementById('actionBtn').addEventListener('click', () => {
+            const text = document.getElementById('notesInput').value;
+            const hasProblemNotes = getAllProblemNotes(text, currentKuraiKey, currentOctave).length > 0;
+            const hasReplacements = Object.keys(manualReplacements).length > 0;
+            
+            if (hasReplacements) {
+                resetAllReplacements();
+            } else if (hasProblemNotes) {
+                autoReplaceAllProblems();
+            }
+        });
+    }
     
-    document.getElementById('octaveDown').addEventListener('click', () => { 
-        if (currentOctave > 3) { 
-            currentOctave--; 
-            document.getElementById('currentOctave').innerText = currentOctave; 
-            performRender(); 
-        } 
-    });
-    document.getElementById('octaveUp').addEventListener('click', () => { 
-        if (currentOctave < 6) { 
-            currentOctave++; 
-            document.getElementById('currentOctave').innerText = currentOctave; 
-            performRender(); 
-        } 
-    });
-    document.getElementById('copyBtn').addEventListener('click', async () => {
-        const txt = document.getElementById('tabResult').innerText;
-        if (!txt || txt === '—') return alert('Нет данных');
-        await navigator.clipboard.writeText(txt);
-        const btn = document.getElementById('copyBtn');
-        btn.innerHTML = '📄 Скопировано!';
-        setTimeout(() => btn.innerHTML = '📋 Копировать', 1500);
-    });
-    
-    // Кнопка для отображения нотного стана
-    document.getElementById('showNotationBtn').addEventListener('click', () => {
-        renderNotation();
-    });
-    
-    // Кнопка закрытия нотного стана
-    document.getElementById('closeNotationBtn').addEventListener('click', () => {
-        document.getElementById('notationContainer').style.display = 'none';
-    });
-    
-    // Пример мелодии (курайная тема)
-    document.getElementById('notesInput').value = ``;
+    // Пример мелодии
+    document.getElementById('notesInput').value = `D C D D# F D# D C
+D C A# A# A# A# A A#
+D C A# D# D# D# A A#
+D C A# D# D# D# A A#
+F F D# D# D D# D A#
+A# D D C A A#
+F F D# D# D D# D A#
+A# D D C A A#`;
     
     currentKuraiKey = 'C';
-    performRender();
+    currentOctave = 4;
+    manualReplacements = {};
+    
+    initEventHandlers();
+    performRenderWithReplacements();
 })();
