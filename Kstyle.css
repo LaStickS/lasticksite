@@ -1,0 +1,521 @@
+/* ===== ТЁМНЫЙ ФОН КАК В ПЕРВОЙ ВЕРСИИ ===== */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    background: linear-gradient(145deg, #2a1f0e 0%, #1a1208 100%);
+    font-family: 'Segoe UI', 'Georgia', serif;
+    min-height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 2rem 1.5rem;
+    position: relative;
+}
+
+/* ===== УЗОРЫ ПОВЕРХ ТЁМНОГО ФОНА ===== */
+.pattern-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    pointer-events: none;
+    z-index: 1;
+}
+
+.pattern-stripe {
+    position: absolute;
+    top: -20%;
+    height: 140%;
+    background-repeat: repeat;
+    background-size: auto 90px;
+    transform: rotate(22deg);
+}
+
+/* Полоса 1 */
+.stripe-1 {
+    left: -15%;
+    width: 28%;
+    background-image: url('patterns/ornament1.png');
+    opacity: 0.3;
+    transform: rotate(25deg);
+}
+
+/* Полоса 2 */
+.stripe-2 {
+    left: 12%;
+    width: 25%;
+    background-image: url('patterns/ornament2.png');
+    background-size: auto 75px;
+    opacity: 0.27;
+    transform: rotate(20deg);
+}
+
+/* Полоса 3 */
+.stripe-3 {
+    left: 38%;
+    width: 26%;
+    background-image: url('patterns/ornament3.png');
+    background-size: auto 85px;
+    opacity: 0.28;
+    transform: rotate(28deg);
+}
+
+/* Полоса 4 */
+.stripe-4 {
+    left: 62%;
+    width: 24%;
+    background-image: url('patterns/ornament1.png');
+    background-size: auto 70px;
+    opacity: 0.26;
+    transform: rotate(23deg);
+}
+
+/* Полоса 5 */
+.stripe-5 {
+    left: 85%;
+    width: 25%;
+    background-image: url('patterns/ornament2.png');
+    background-size: auto 80px;
+    opacity: 0.29;
+    transform: rotate(27deg);
+}
+
+.card {
+    position: relative;
+    z-index: 10;
+    max-width: 1300px;
+    width: 100%;
+    background: #fdf7e7;
+    border-radius: 64px 48px;
+    box-shadow: 0 25px 45px rgba(0, 0, 0, 0.5);
+    overflow: hidden;
+    border: 1px solid #e4d2b5;
+}
+
+.header {
+    background: linear-gradient(135deg, #b2874b, #8b5a2b);
+    padding: 1.5rem 2rem;
+    text-align: center;
+    border-bottom: 3px solid #e9cf9e;
+}
+
+.header h1 {
+    font-size: 1.8rem;
+    color: #fff3df;
+    text-shadow: 3px 3px 0 #5a3a1a;
+    display: inline-flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+    justify-content: center;
+}
+
+.content {
+    padding: 2rem;
+}
+
+label {
+    font-weight: 600;
+    color: #4f361b;
+    margin-bottom: 10px;
+    display: block;
+    border-left: 4px solid #c69954;
+    padding-left: 14px;
+}
+
+textarea {
+    width: 100%;
+    border-radius: 28px;
+    border: 1px solid #e2cfaa;
+    background: #fffcf5;
+    font-family: 'Courier New', monospace;
+    font-size: 1rem;
+    padding: 1rem;
+    resize: vertical;
+    line-height: 1.5;
+    margin-bottom: 20px;
+}
+
+.tonality-panel {
+    background: #f3ead9;
+    border-radius: 48px;
+    padding: 1rem 1.5rem;
+    margin: 18px 0;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+}
+
+.tonality-info {
+    display: flex;
+    align-items: baseline;
+    gap: 12px;
+    background: #fff6ea;
+    padding: 6px 18px;
+    border-radius: 60px;
+}
+
+.tonality-badge {
+    font-weight: bold;
+    font-size: 1.5rem;
+    color: #9a4f1a;
+    font-family: monospace;
+    background: #fae9cf;
+    padding: 2px 14px;
+    border-radius: 50px;
+}
+
+.transpose-control {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+.transpose-select {
+    background: #fff6ea;
+    border: 2px solid #c69954;
+    border-radius: 60px;
+    padding: 10px 20px;
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    font-family: monospace;
+    transition: all 0.2s;
+    box-shadow: 0 6px 0 #c69954;
+}
+
+.transpose-select:hover {
+    background: #ffefdb;
+    border-color: #a5723a;
+    box-shadow: 0 6px 0 #a5723a;
+    transform: translateY(-1px);
+}
+
+.transpose-select:active {
+    transform: translateY(3px);
+    box-shadow: 0 3px 0 #c69954;
+}
+
+.apply-btn {
+    background: #9b6e3e;
+    border: none;
+    padding: 10px 28px;
+    border-radius: 60px;
+    font-weight: bold;
+    font-size: 1rem;
+    color: #fff3e0;
+    cursor: pointer;
+    transition: all 0.2s;
+    box-shadow: 0 6px 0 #5c381a;
+}
+
+.apply-btn:active {
+    transform: translateY(3px);
+    box-shadow: 0 3px 0 #5c381a;
+}
+
+.apply-btn:hover {
+    background: #c69954;
+    border-color: #a5723a;
+    box-shadow: 0 6px 0 #a5723a;
+}
+
+.kurai-suggest {
+    background: #e9dccd;
+    border-radius: 36px;
+    padding: 12px 20px;
+    margin: 12px 0;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.suggest-buttons {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+.kurai-badge {
+    background: #fff0db;
+    border-radius: 40px;
+    padding: 6px 16px;
+    font-weight: bold;
+    cursor: pointer;
+    border: 1px solid #c69954;
+    transition: all 0.1s;
+    font-family: monospace;
+    font-size: 0.9rem;
+}
+
+.kurai-badge.active {
+    background: #c97e3a;
+    color: white;
+    border-color: #6b3c12;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+}
+
+.kurai-badge:hover {
+    background: #dba153;
+    color: white;
+}
+
+.octave-selector {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: #fff6ea;
+    padding: 4px 12px;
+    border-radius: 60px;
+    width: fit-content;
+    margin-top: 8px;
+}
+
+.octave-selector button {
+    background: #dbbc87;
+    border: none;
+    width: 32px;
+    height: 32px;
+    border-radius: 30px;
+    font-weight: bold;
+    cursor: pointer;
+    font-size: 1.2rem;
+    transition: all 0.1s;
+}
+
+.octave-selector button:hover {
+    background: #c9a862;
+}
+
+.mapping-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin: 20px 0;
+    justify-content: center;
+    background: #f3ead9;
+    padding: 20px;
+    border-radius: 48px;
+}
+
+.mapping-item {
+    background: #fff2e0;
+    padding: 6px 14px;
+    border-radius: 40px;
+    font-family: monospace;
+    font-weight: bold;
+    font-size: 0.9rem;
+    color: #4f2d10;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    border-left: 3px solid #c69954;
+}
+
+.mapping-item span {
+    font-weight: 800;
+    color: #b45f2b;
+    font-size: 1.1rem;
+    background: #fae6cd;
+    padding: 2px 8px;
+    border-radius: 30px;
+    margin-right: 6px;
+}
+
+.btn-convert {
+    background: #9b6e3e;
+    border: none;
+    width: 100%;
+    padding: 14px;
+    font-size: 1.2rem;
+    font-weight: bold;
+    color: #fff6e8;
+    border-radius: 60px;
+    cursor: pointer;
+    box-shadow: 0 6px 0 #5c381a;
+    margin: 18px 0;
+    transition: all 0.05s linear;
+}
+
+.btn-convert:active {
+    transform: translateY(3px);
+    box-shadow: 0 3px 0 #5c381a;
+}
+
+.tab-preview {
+    background: #fffcf0;
+    font-family: 'Courier New', 'Fira Code', monospace;
+    font-size: 1.15rem;
+    font-weight: 700;
+    color: #1f1a10;
+    white-space: pre-wrap;
+    min-height: 210px;
+    padding: 1.5rem;
+    border-radius: 36px;
+    border: 2px solid #dfc390;
+    line-height: 1.75;
+    box-shadow: inset 0 0 0 2px #fff9ea, 0 6px 14px rgba(0,0,0,0.08);
+    letter-spacing: 0.3px;
+    background-image: repeating-linear-gradient(transparent, transparent 29px, #f7ebd4 29px, #f7ebd4 30px);
+}
+
+.copy-btn {
+    background: #9b6e3e;
+    border: none;
+    color: #fff3e0;
+    padding: 8px 18px;
+    border-radius: 40px;
+    font-weight: bold;
+    margin-top: 12px;
+    cursor: pointer;
+    transition: all 0.2s;
+    box-shadow: 0 6px 0 #5c381a;
+}
+
+.copy-btn:active {
+    transform: translateY(3px);
+    box-shadow: 0 3px 0 #5c381a;
+}
+
+.copy-btn:hover {
+    background: #c69954;
+    border-color: #a5723a;
+    box-shadow: 0 6px 0 #a5723a;
+}
+.info-box {
+    background: #e8e0cf;
+    padding: 10px 16px;
+    border-radius: 60px;
+    font-size: 0.75rem;
+    margin: 10px 0;
+    text-align: center;
+    color: #5a3e1f;
+}
+
+.footer-note {
+    margin-top: 24px;
+    text-align: center;
+    font-size: 0.7rem;
+    color: #a28659;
+    border-top: 1px dashed #e2cfaa;
+    padding-top: 18px;
+}
+
+.transpose-info {
+    background: #e9dccd;
+    border-radius: 30px;
+    padding: 8px 16px;
+    margin-top: 10px;
+    text-align: center;
+    color: #5a3e1f;
+    font-weight: 500;
+}
+
+.tab-preview strong, .tab-preview b {
+    color: #b45f2b;
+}
+
+@media (max-width: 768px) {
+    .notation-container {
+        padding: 10px;
+    }
+    
+    #staffCanvas, #tabStaffCanvas {
+        min-height: 100px;
+    }
+    
+    .labels-container span {
+        font-size: 10px !important;
+        width: 20px !important;
+        left: calc(50% - 10px) !important;
+    }
+}
+
+/* ===== НОВЫЕ СТИЛИ ДЛЯ НОТНОГО СТАНА ===== */
+
+.btn-notation {
+    background: #7a5c3a;
+    border: none;
+    width: 100%;
+    padding: 12px;
+    font-size: 1rem;
+    font-weight: bold;
+    color: #fff6e8;
+    border-radius: 60px;
+    cursor: pointer;
+    box-shadow: 0 6px 0 #4a341a;
+    margin: 12px 0;
+    transition: all 0.05s linear;
+}
+
+.btn-notation:active {
+    transform: translateY(3px);
+    box-shadow: 0 3px 0 #4a341a;
+}
+
+.btn-notation:hover {
+    background: #9b6e3e;
+}
+
+.notation-container {
+    background: #fdf7e7;
+    border-radius: 36px;
+    padding: 20px;
+    margin: 15px 0;
+    border: 2px solid #dfc390;
+    box-shadow: 0 6px 14px rgba(0,0,0,0.1);
+    overflow-x: auto;
+}
+
+#staffCanvas, #tabStaffCanvas {
+    background: #fffcf5;
+    border-radius: 16px;
+    margin: 10px 0;
+    min-height: 150px;
+}
+
+#staffCanvas svg, #tabStaffCanvas svg {
+    display: block;
+    margin: 0 auto;
+}
+
+.close-notation-btn {
+    background: #c97e3a;
+    border: none;
+    padding: 8px 20px;
+    border-radius: 40px;
+    color: white;
+    font-weight: bold;
+    cursor: pointer;
+    margin-top: 15px;
+    transition: all 0.2s;
+}
+
+.close-notation-btn:hover {
+    background: #a56128;
+}
+
+.error-message {
+    color: #c0392b;
+    background: #fae6cd;
+    padding: 15px;
+    border-radius: 16px;
+    text-align: center;
+    font-weight: bold;
+}
+
+.labels-container {
+    position: relative;
+    min-height: 40px;
+}
+
+/* Адаптация для мобильных устройств */

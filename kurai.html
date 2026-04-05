@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+    <title>Курай Таб — инструмент для табулатуры курая</title>
+    <link rel="stylesheet" href="Kstyle.css">
+    <script src="https://cdn.jsdelivr.net/npm/vexflow@4.2.2/build/cjs/vexflow.js"></script>
+</head>
+<body>
+    <div class="pattern-overlay">
+        <div class="pattern-stripe stripe-1"></div>
+        <div class="pattern-stripe stripe-2"></div>
+        <div class="pattern-stripe stripe-3"></div>
+        <div class="pattern-stripe stripe-4"></div>
+        <div class="pattern-stripe stripe-5"></div>
+    </div>
+
+    <div class="card">
+        <div class="header">
+            <h1>
+                <span>🏔️</span> Ҡурай Таб <span>📜</span>
+            </h1>
+        </div>
+        <div class="content">
+            <label>🎵 Введите ноты (C C# D D# E F F# G G# A A# B, До Ре Ми...)</label>
+            <textarea id="notesInput" rows="5"></textarea>
+
+            <div class="tonality-panel">
+                <div class="tonality-info">
+                    <span>🎼 Исходная тональность (первая нота):</span>
+                    <span class="tonality-badge" id="detectedKey">—</span>
+                </div>
+                <div class="transpose-control">
+                    <span>🎹 Целевой строй курая:</span>
+                    <select id="keySelector" class="transpose-select">
+                        <option value="C">C (До мажор)</option>
+                        <option value="C#">C# (До-диез)</option>
+                        <option value="D">D (Ре мажор)</option>
+                        <option value="D#">D# (Ре-диез/Eb)</option>
+                        <option value="E">E (Ми мажор)</option>
+                        <option value="F">F (Фа мажор)</option>
+                        <option value="F#">F# (Фа-диез)</option>
+                        <option value="G">G (Соль мажор)</option>
+                        <option value="G#">G# (Соль-диез/Ab)</option>
+                        <option value="A">A (Ля мажор)</option>
+                        <option value="A#">A# (Ля-диез/Bb)</option>
+                        <option value="B">B (Си мажор)</option>
+                    </select>
+                    <button id="applyKuraiBtn" class="apply-btn">🎼 Применить строй</button>
+                </div>
+            </div>
+
+            <div class="kurai-suggest">
+                <span style="font-weight: bold;">🎺 Кураи, подходящие для оригинальной мелодии (все ноты есть без транспонирования):</span>
+                <div class="suggest-buttons" id="suggestContainer"></div>
+            </div>
+
+            <div class="octave-selector">
+                <span>🎚️ Базовая октава (4 = первая, 5 = вторая):</span>
+                <button id="octaveDown">−</button>
+                <span id="currentOctave">4</span>
+                <button id="octaveUp">+</button>
+            </div>
+
+            <div class="info-box">
+                ❗ <strong>Передувание:</strong> Если нота на полтона выше 5-й ступени звукоряда — это <strong>*</strong> (например, B на До курае = 5*).<br>
+                Если выше на целый тон — <strong>**</strong>. Всегда ищется ближайшая аппликатура (0–5) с возможным передувом.
+            </div>
+
+            <div class="mapping-grid" id="mappingGrid"></div>
+
+            <button class="btn-convert" id="convertBtn">📃 Показать табулатуру 📃</button>
+
+            <label>🎼 Табулатура (цифры 0-5, * = передув на 7-ю ноту, ** = двойной)</label>
+            <div class="tab-preview" id="tabResult">—</div>
+            
+            <!-- Новая кнопка для отображения нотного стана -->
+            <button class="btn-notation" id="showNotationBtn">🎼 Показать нотный стан с нотами 🎵</button>
+            
+            <!-- Контейнер для нотного стана VexFlow -->
+            <div id="notationContainer" class="notation-container" style="display: none;">
+                <div id="staffCanvas"></div>
+                <div id="tabStaffCanvas"></div>
+                <button class="close-notation-btn" id="closeNotationBtn">✖ Закрыть</button>
+            </div>
+            
+            <div style="display: flex; justify-content: flex-end;">
+                <button class="copy-btn" id="copyBtn">📋 Копировать</button>
+            </div>
+            <div id="transposeInfo" class="transpose-info"></div>
+            <div class="footer-note">
+                <strong>Курай Таб 🍃</strong><br>
+                ©2026
+            </div>
+        </div>
+    </div>
+
+    <script src="Kscript.js"></script>
+</body>
+</html>
