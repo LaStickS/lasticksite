@@ -37,12 +37,8 @@
     };
     
     // Вспомогательные функции
-    function getNoteIndex(note) {
-        return CHROMATIC.indexOf(note);
-    }
-    
     function transposeNote(note, semitones) {
-        const idx = getNoteIndex(note);
+        const idx = CHROMATIC.indexOf(note);
         if (idx === -1) return note;
         const newIdx = (idx + semitones + 120) % 12;
         return CHROMATIC[newIdx];
@@ -51,90 +47,59 @@
     function getSeventhNoteAndOverblow(scaleNotes) {
         if (scaleNotes.length !== 6) return null;
         const fifthNote = scaleNotes[5];
-        const idxFifth = getNoteIndex(fifthNote);
+        const idxFifth = CHROMATIC.indexOf(fifthNote);
         if (idxFifth === -1) return null;
         const seventhNote = CHROMATIC[(idxFifth + 1) % 12];
         const doubleOverblowNote = CHROMATIC[(idxFifth + 2) % 12];
         return { seventh: seventhNote, double: doubleOverblowNote };
     }
     
-    // НОВАЯ ФУНКЦИЯ: поиск оптимального транспонирования для всей мелодии
-    function findBestTranspositionForMelody(originalNotes, targetKuraiKey) {
+    function getOptimalFingeringWithOverblow(originalNote, targetKuraiKey, baseOctave) {
         const scaleNotes = KURAI_SCALES[targetKuraiKey].notes;
-        if (!scaleNotes.length) return 0;
+        if (!scaleNotes.length) return { fingering: '?', transposed: null, wasTransposed: false, shift: 0 };
         
-        // Пробуем все возможные сдвиги от -5 до +5
-        let bestShift = 0;
-        let bestScore = -1;
-        
-        for (let shift of [-5, -4, -3, -2, -1, 0, 1, 2, 3, 4, 5]) {
-            let score = 0;
-            for (const note of originalNotes) {
-                const transposedNote = transposeNote(note, shift);
-                // Проверяем, входит ли транспонированная нота в звукоряд
-                if (scaleNotes.includes(transposedNote)) {
-                    score++;
-                } else {
-                    // Проверяем передувы
-                    const fifthNote = scaleNotes[5];
-                    const idxFifth = getNoteIndex(fifthNote);
-                    if (idxFifth !== -1) {
-                        const seventhNote = CHROMATIC[(idxFifth + 1) % 12];
-                        const doubleNote = CHROMATIC[(idxFifth + 2) % 12];
-                        if (transposedNote === seventhNote || transposedNote === doubleNote) {
-                            score += 0.8; // Передувы допустимы, но чуть хуже
-                        }
-                    }
-                }
-            }
-            
-            if (score > bestScore) {
-                bestScore = score;
-                bestShift = shift;
-            }
-        }
-        
-        return bestShift;
-    }
-    
-    // Новая функция: получение аппликатуры с сохранением транспозиции
-    function getFingeringWithGlobalTransposition(originalNote, targetKuraiKey, baseOctave, globalShift) {
-        const scaleNotes = KURAI_SCALES[targetKuraiKey].notes;
-        if (!scaleNotes.length) return { fingering: '?', transposed: null, wasTransposed: false, shift: globalShift };
-        
-        // Применяем глобальную транспозицию
-        const transposedNote = transposeNote(originalNote, globalShift);
-        
-        // Проверяем прямое попадание
-        if (scaleNotes.includes(transposedNote)) {
-            const index = scaleNotes.indexOf(transposedNote);
+        // Прямое попадание в основной звукоряд
+        if (scaleNotes.includes(originalNote)) {
+            const index = scaleNotes.indexOf(originalNote);
             let stars = '';
             if (baseOctave === 5) stars = '*';
             else if (baseOctave === 6) stars = '**';
-            return { fingering: index.toString() + stars, transposed: transposedNote, wasTransposed: true, shift: globalShift };
+            return { fingering: index.toString() + stars, transposed: originalNote, wasTransposed: false, shift: 0, overblowNote: false };
         }
         
-        // Проверяем передувы
+        // Передувы на 5-й позиции (септима и децима)
         const fifthNote = scaleNotes[5];
-        const idxFifth = getNoteIndex(fifthNote);
+        const idxFifth = CHROMATIC.indexOf(fifthNote);
         if (idxFifth !== -1) {
             const seventhNote = CHROMATIC[(idxFifth + 1) % 12];
-            if (transposedNote === seventhNote) {
+            if (originalNote === seventhNote) {
                 let stars = '*';
                 if (baseOctave === 5) stars = '**';
                 else if (baseOctave === 6) stars = '***';
-                return { fingering: `5${stars}`, transposed: seventhNote, wasTransposed: true, shift: globalShift, overblowNote: true };
+                return { fingering: `5${stars}`, transposed: seventhNote, wasTransposed: false, shift: 0, overblowNote: true };
             }
             const doubleNote = CHROMATIC[(idxFifth + 2) % 12];
-            if (transposedNote === doubleNote) {
+            if (originalNote === doubleNote) {
                 let stars = '**';
                 if (baseOctave === 5) stars = '***';
                 else if (baseOctave === 6) stars = '****';
-                return { fingering: `5${stars}`, transposed: doubleNote, wasTransposed: true, shift: globalShift, overblowNote: true };
+                return { fingering: `5${stars}`, transposed: doubleNote, wasTransposed: false, shift: 0, overblowNote: true };
             }
         }
         
-        return { fingering: '?', transposed: null, wasTransposed: true, shift: globalShift };
+        // Транспонирование (поиск ближайшей замены в пределах ±5 полутонов)
+        for (let shift of [-1, 1, -2, 2, -3, 3, -4, 4, -5, 5]) {
+            const transposed = transposeNote(originalNote, shift);
+            if (scaleNotes.includes(transposed)) {
+                const index = scaleNotes.indexOf(transposed);
+                let stars = '';
+                if (baseOctave === 5) stars = '*';
+                else if (baseOctave === 6) stars = '**';
+                return { fingering: index.toString() + stars, transposed: transposed, wasTransposed: true, shift: shift, overblowNote: false };
+            }
+        }
+        
+        return { fingering: '?', transposed: null, wasTransposed: false, shift: 0 };
     }
     
     // Парсинг текста с сохранением структуры (ноты + остальной текст)
@@ -168,32 +133,28 @@
     }
     
     // Получение списка нот для отображения на нотном стане
-    function getNoteSequenceFromLine(segments, targetKuraiKey, baseOctave, globalShift) {
+    function getNoteSequenceFromLine(segments, targetKuraiKey, baseOctave) {
         const noteSequence = [];
         for (const seg of segments) {
             if (seg.type === 'note' && seg.normalized) {
-                const result = getFingeringWithGlobalTransposition(seg.normalized, targetKuraiKey, baseOctave, globalShift);
+                const result = getOptimalFingeringWithOverblow(seg.normalized, targetKuraiKey, baseOctave);
                 noteSequence.push({
                     note: result.transposed || seg.normalized,
                     originalNote: seg.normalized,
                     fingering: result.fingering,
-                    wasTransposed: result.wasTransposed,
-                    shift: result.shift
+                    wasTransposed: result.wasTransposed
                 });
             }
         }
         return noteSequence;
     }
     
-    // Основная обработка мелодии с глобальной транспозицией
+    // Основная обработка мелодии
     function processMelody(text, targetKuraiKey, baseOctave) {
-        if (!text.trim()) return { tab: '—', originalKey: 'C', allNotes: [], missingCount: 0, transpositionCount: 0, transpositionDetails: [], overblowCount: 0, globalShift: 0 };
+        if (!text.trim()) return { tab: '—', originalKey: 'C', allNotes: [], missingCount: 0, transpositionCount: 0, transpositionDetails: [], overblowCount: 0 };
         
         const { parsedLines, allNotes } = parseNotesWithFormat(text);
         const originalKey = detectKey(allNotes);
-        
-        // Находим оптимальную транспозицию для всей мелодии
-        const globalShift = findBestTranspositionForMelody(allNotes, targetKuraiKey);
         
         const resultLines = [];
         let missingCount = 0;
@@ -209,7 +170,7 @@
                     lineRes += seg.content;
                 } else if (seg.type === 'note' && seg.normalized) {
                     totalNotes++;
-                    const result = getFingeringWithGlobalTransposition(seg.normalized, targetKuraiKey, baseOctave, globalShift);
+                    const result = getOptimalFingeringWithOverblow(seg.normalized, targetKuraiKey, baseOctave);
                     if (result.fingering === '?') {
                         missingCount++;
                         lineRes += '?';
@@ -234,8 +195,7 @@
             totalNotes: totalNotes,
             transpositionCount: transpositionCount,
             transpositionDetails: transpositionDetails,
-            overblowCount: overblowCount,
-            globalShift: globalShift
+            overblowCount: overblowCount
         };
     }
     
@@ -309,7 +269,7 @@
     }
     
     // --------------------------------------------------------------
-    // Функция для отображения нотного стана
+    // Функция для отображения нотного стана (только ноты, без табулатуры)
     // --------------------------------------------------------------
     function renderNotation() {
         const text = document.getElementById('notesInput').value;
@@ -320,33 +280,27 @@
             return;
         }
         
+        // Показываем контейнер
         const container = document.getElementById('notationContainer');
         container.style.display = 'block';
         
+        // Очищаем предыдущие рендеры
         const staffCanvas = document.getElementById('staffCanvas');
         staffCanvas.innerHTML = '';
         
         try {
             const VF = Vex.Flow;
             
-            // Находим максимальное количество нот в строке
+            // Находим максимальное количество нот в строке для единой ширины
             let maxNotesInLine = 0;
             const linesNotes = [];
-            const { parsedLines: allParsedLines } = parseNotesWithFormat(text);
             
-            // Находим глобальную транспозицию для всей мелодии
-            const { allNotes } = parseNotesWithFormat(text);
-            const globalShift = findBestTranspositionForMelody(allNotes, currentKuraiKey);
-            
-            // Собираем ноты по строкам
-            const textLines = text.split(/\r?\n/);
-            for (let lineIdx = 0; lineIdx < textLines.length; lineIdx++) {
-                const line = textLines[lineIdx];
+            for (const line of lines) {
                 if (line.trim() === '') continue;
                 const { parsedLines } = parseNotesWithFormat(line);
                 let lineNotes = [];
                 for (const segments of parsedLines) {
-                    const notes = getNoteSequenceFromLine(segments, currentKuraiKey, currentOctave, globalShift);
+                    const notes = getNoteSequenceFromLine(segments, currentKuraiKey, currentOctave);
                     lineNotes = lineNotes.concat(notes);
                 }
                 if (lineNotes.length > 0) {
@@ -357,10 +311,12 @@
                 }
             }
             
+            // Рассчитываем единую ширину для всех строк
             const noteWidth = 45;
             const width = Math.min(1000, Math.max(400, maxNotesInLine * noteWidth + 100));
             const height = 180;
             
+            // Создаем контейнер для всех строк
             const linesContainer = document.createElement('div');
             linesContainer.style.display = 'flex';
             linesContainer.style.flexDirection = 'column';
@@ -372,16 +328,19 @@
             for (let lineIdx = 0; lineIdx < linesNotes.length; lineIdx++) {
                 const lineNotes = linesNotes[lineIdx];
                 
+                // Создаем контейнер для строки
                 const lineDiv = document.createElement('div');
                 lineDiv.style.position = 'relative';
                 lineDiv.style.marginBottom = '5px';
                 linesContainer.appendChild(lineDiv);
                 
+                // Создаем рендерер
                 const renderer = new VF.Renderer(lineDiv, VF.Renderer.Backends.SVG);
                 renderer.resize(width, height);
                 const context = renderer.getContext();
                 context.setFont('Arial', 10);
                 
+                // Создаем нотный стан
                 const stave = new VF.Stave(10, 20, width - 20);
                 stave.addClef('treble');
                 if (firstLine) {
@@ -390,6 +349,7 @@
                 }
                 stave.setContext(context).draw();
                 
+                // Создаем ноты для этой строки
                 const staveNotes = [];
                 for (const noteData of lineNotes) {
                     let noteName = noteData.note;
@@ -423,6 +383,7 @@
                     staveNotes.push(staveNote);
                 }
                 
+                // Форматируем ноты в строке
                 const voice = new VF.Voice({ num_beats: staveNotes.length, beat_value: 4 });
                 voice.addTickables(staveNotes);
                 
@@ -430,12 +391,15 @@
                 formatter.joinVoices([voice]).formatToStave([voice], stave);
                 voice.draw(context, stave);
                 
+                // Добавляем подписи (аппликатуру) ПОД нотным станом
                 setTimeout(() => {
                     const svg = lineDiv.querySelector('svg');
                     if (svg) {
+                        // Находим все нотные головки
                         const noteHeads = svg.querySelectorAll('.vf-notehead');
                         const containerRect = lineDiv.getBoundingClientRect();
                         
+                        // Создаем контейнер для подписей под станом
                         const labelsWrapper = document.createElement('div');
                         labelsWrapper.style.position = 'relative';
                         labelsWrapper.style.marginTop = '5px';
@@ -469,12 +433,6 @@
                 }, 100);
             }
             
-            // Показываем информацию о транспозиции
-            const transposeInfo = document.getElementById('transposeInfo');
-            if (globalShift !== 0) {
-                transposeInfo.innerHTML += `<span style="background:#e9dccd; padding:2px 8px; border-radius:20px; margin-left:10px;">🎵 Транспонировано на ${globalShift > 0 ? '+' : ''}${globalShift} полутонов</span>`;
-            }
-            
         } catch (error) {
             console.error('Ошибка при рендеринге нот:', error);
             const staffCanvas = document.getElementById('staffCanvas');
@@ -499,15 +457,12 @@
         
         let infoText = '';
         const scaleName = KURAI_SCALES[currentKuraiKey]?.name || currentKuraiKey;
-        if (result.globalShift !== 0) {
-            infoText = `🎵 Транспонировано на ${result.globalShift > 0 ? '+' : ''}${result.globalShift} полутонов. `;
-        }
         if (result.transpositionCount === 0 && result.missingCount === 0 && result.overblowCount === 0)
-            infoText += `✅ Все ноты есть в звукоряде ${scaleName}.`;
+            infoText = `✅ Все ноты есть в звукоряде ${scaleName}. Передувы не нужны.`;
         else if (result.overblowCount > 0)
-            infoText += `🎵 Использовано передуваний: ${result.overblowCount}.`;
+            infoText = `🎵 Использовано передуваний: ${result.overblowCount}. Транспонировано: ${result.transpositionCount}.`;
         else if (result.transpositionCount > 0)
-            infoText += `🎵 Транспонировано ${result.transpositionCount} из ${result.totalNotes} нот.`;
+            infoText = `🎵 Транспонировано ${result.transpositionCount} из ${result.totalNotes} нот.`;
         if (result.missingCount > 0) infoText += ` ⚠️ ${result.missingCount} нот не найдены (?)`;
         document.getElementById('transposeInfo').innerHTML = infoText || 'Готово';
     }
@@ -544,25 +499,19 @@
         setTimeout(() => btn.innerHTML = '📋 Копировать', 1500);
     });
     
+    // Кнопка для отображения нотного стана
     document.getElementById('showNotationBtn').addEventListener('click', () => {
         renderNotation();
     });
     
+    // Кнопка закрытия нотного стана
     document.getElementById('closeNotationBtn').addEventListener('click', () => {
         document.getElementById('notationContainer').style.display = 'none';
     });
     
-    // Пример мелодии
-    document.getElementById('notesInput').value = `D C D D# F D# D C 
-D C A# A# A# A# A A#
-
-D C A# D# D# D# A A#
-D C A# D# D# D# A A#
-F F D# D# D D# D A# 
-A# D D C A A#
-F F D# D# D D# D A#
-A# D D C A A#`;
+    // Пример мелодии (курайная тема)
+    document.getElementById('notesInput').value = ``;
     
-    currentKuraiKey = 'G#';
+    currentKuraiKey = 'C';
     performRender();
 })();
