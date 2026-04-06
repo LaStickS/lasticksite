@@ -397,170 +397,18 @@
     }
     
     // --------------------------------------------------------------
-    // Функция для отображения нотного стана
-    // --------------------------------------------------------------
-    function renderNotation() {
-        const text = document.getElementById('notesInput').value;
-        const lines = text.split(/\r?\n/);
-        
-        if (!text.trim()) {
-            alert('Нет нот для отображения. Пожалуйста, введите ноты.');
-            return;
-        }
-        
-        const container = document.getElementById('notationContainer');
-        container.style.display = 'block';
-        
-        const staffCanvas = document.getElementById('staffCanvas');
-        staffCanvas.innerHTML = '';
-        
-        try {
-            const VF = Vex.Flow;
-            
-            let maxNotesInLine = 0;
-            const linesNotes = [];
-            
-            for (const line of lines) {
-                if (line.trim() === '') continue;
-                const { parsedLines } = parseNotesWithFormat(line);
-                let lineNotes = [];
-                for (const segments of parsedLines) {
-                    const notes = getNoteSequenceFromLine(segments, currentKuraiKey, currentOctave, manualReplacements);
-                    lineNotes = lineNotes.concat(notes);
-                }
-                if (lineNotes.length > 0) {
-                    linesNotes.push(lineNotes);
-                    if (lineNotes.length > maxNotesInLine) {
-                        maxNotesInLine = lineNotes.length;
-                    }
-                }
-            }
-            
-            const noteWidth = 45;
-            const width = Math.min(1000, Math.max(400, maxNotesInLine * noteWidth + 100));
-            const height = 180;
-            
-            const linesContainer = document.createElement('div');
-            linesContainer.style.display = 'flex';
-            linesContainer.style.flexDirection = 'column';
-            linesContainer.style.gap = '25px';
-            staffCanvas.appendChild(linesContainer);
-            
-            let firstLine = true;
-            
-            for (let lineIdx = 0; lineIdx < linesNotes.length; lineIdx++) {
-                const lineNotes = linesNotes[lineIdx];
-                
-                const lineDiv = document.createElement('div');
-                lineDiv.style.position = 'relative';
-                lineDiv.style.marginBottom = '5px';
-                linesContainer.appendChild(lineDiv);
-                
-                const renderer = new VF.Renderer(lineDiv, VF.Renderer.Backends.SVG);
-                renderer.resize(width, height);
-                const context = renderer.getContext();
-                context.setFont('Arial', 10);
-                
-                const stave = new VF.Stave(10, 20, width - 20);
-                stave.addClef('treble');
-                if (firstLine) {
-                    stave.addTimeSignature('4/4');
-                    firstLine = false;
-                }
-                stave.setContext(context).draw();
-                
-                const staveNotes = [];
-                for (const noteData of lineNotes) {
-                    let noteName = noteData.note;
-                    let noteWithOctave;
-                    switch(noteName) {
-                        case 'C': noteWithOctave = 'c/4'; break;
-                        case 'C#': noteWithOctave = 'c#/4'; break;
-                        case 'D': noteWithOctave = 'd/4'; break;
-                        case 'D#': noteWithOctave = 'd#/4'; break;
-                        case 'E': noteWithOctave = 'e/4'; break;
-                        case 'F': noteWithOctave = 'f/4'; break;
-                        case 'F#': noteWithOctave = 'f#/4'; break;
-                        case 'G': noteWithOctave = 'g/4'; break;
-                        case 'G#': noteWithOctave = 'g#/4'; break;
-                        case 'A': noteWithOctave = 'a/4'; break;
-                        case 'A#': noteWithOctave = 'a#/4'; break;
-                        case 'B': noteWithOctave = 'b/4'; break;
-                        default: noteWithOctave = 'c/4';
-                    }
-                    
-                    const staveNote = new VF.StaveNote({
-                        keys: [noteWithOctave],
-                        duration: 'q',
-                        auto_stem: true
-                    });
-                    
-                    if (noteName.includes('#')) {
-                        staveNote.addAccidental(0, new VF.Accidental('#'));
-                    }
-                    
-                    staveNotes.push(staveNote);
-                }
-                
-                const voice = new VF.Voice({ num_beats: staveNotes.length, beat_value: 4 });
-                voice.addTickables(staveNotes);
-                
-                const formatter = new VF.Formatter();
-                formatter.joinVoices([voice]).formatToStave([voice], stave);
-                voice.draw(context, stave);
-                
-                setTimeout(() => {
-                    const svg = lineDiv.querySelector('svg');
-                    if (svg) {
-                        const noteHeads = svg.querySelectorAll('.vf-notehead');
-                        const containerRect = lineDiv.getBoundingClientRect();
-                        
-                        const labelsWrapper = document.createElement('div');
-                        labelsWrapper.style.position = 'relative';
-                        labelsWrapper.style.marginTop = '5px';
-                        labelsWrapper.style.height = '30px';
-                        labelsWrapper.style.width = width + 'px';
-                        lineDiv.appendChild(labelsWrapper);
-                        
-                        for (let i = 0; i < lineNotes.length && i < noteHeads.length; i++) {
-                            const rect = noteHeads[i].getBoundingClientRect();
-                            
-                            const label = document.createElement('div');
-                            label.textContent = lineNotes[i].fingering;
-                            label.style.position = 'absolute';
-                            label.style.left = (rect.left - containerRect.left + rect.width / 2 - 15) + 'px';
-                            label.style.top = '0px';
-                            label.style.width = '30px';
-                            label.style.textAlign = 'center';
-                            label.style.color = '#b45f2b';
-                            label.style.backgroundColor = '#fae6cd';
-                            label.style.borderRadius = '20px';
-                            label.style.padding = '3px 5px';
-                            label.style.fontSize = '13px';
-                            label.style.fontWeight = 'bold';
-                            label.style.fontFamily = 'monospace';
-                            label.style.boxShadow = '0 1px 2px rgba(0,0,0,0.15)';
-                            label.style.border = '1px solid #c69954';
-                            
-                            labelsWrapper.appendChild(label);
-                        }
-                    }
-                }, 100);
-            }
-            
-        } catch (error) {
-            console.error('Ошибка при рендеринге нот:', error);
-            const staffCanvas = document.getElementById('staffCanvas');
-            staffCanvas.innerHTML = `<div class="error-message">Ошибка при создании нотного стана: ${error.message}</div>`;
-        }
-    }
-    
-    // --------------------------------------------------------------
-    // 2. Состояние и рендер
+    // 2. Состояние и рендер (основной)
     // --------------------------------------------------------------
     let currentKuraiKey = 'C';
     let currentOctave = 4;
     let manualReplacements = {};
+    
+    // Функция для вызова рендеринга нотного стана (будет переопределена из второго файла)
+    let renderNotationCallback = null;
+    
+    function setRenderNotationCallback(callback) {
+        renderNotationCallback = callback;
+    }
     
     // Функция обновления состояния кнопки actionBtn
     function updateActionButton() {
@@ -634,6 +482,18 @@
         updateActionButton();
     }
     
+    // Экспорт функций для использования из второго файла
+    window.KuraiCore = {
+        getCurrentKuraiKey: () => currentKuraiKey,
+        getCurrentOctave: () => currentOctave,
+        getManualReplacements: () => manualReplacements,
+        getExactFingering: getExactFingering,
+        parseNotesWithFormat: parseNotesWithFormat,
+        getNoteSequenceFromLine: getNoteSequenceFromLine,
+        performRenderWithReplacements: performRenderWithReplacements,
+        setRenderNotationCallback: setRenderNotationCallback
+    };
+    
     // --------------------------------------------------------------
     // 3. Инициализация DOM-событий
     // --------------------------------------------------------------
@@ -677,7 +537,11 @@
         });
         
         document.getElementById('showNotationBtn').addEventListener('click', () => {
-            renderNotation();
+            if (renderNotationCallback) {
+                renderNotationCallback();
+            } else {
+                alert('Модуль нотного стана не загружен');
+            }
         });
         
         document.getElementById('closeNotationBtn').addEventListener('click', () => {
@@ -699,14 +563,7 @@
     }
     
     // Пример мелодии
-    document.getElementById('notesInput').value = `D C D D# F D# D C
-D C A# A# A# A# A A#
-D C A# D# D# D# A A#
-D C A# D# D# D# A A#
-F F D# D# D D# D A#
-A# D D C A A#
-F F D# D# D D# D A#
-A# D D C A A#`;
+    document.getElementById('notesInput').value = `D-D D C`;
     
     currentKuraiKey = 'C';
     currentOctave = 4;

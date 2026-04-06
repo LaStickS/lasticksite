@@ -2,7 +2,7 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+    <meta name="viewport" content="width=1024, user-scalable=yes">
     <title>Курай Таб — инструмент для табулатуры курая</title>
     <link rel="stylesheet" href="Kstyle.css">
     <script src="https://cdn.jsdelivr.net/npm/vexflow@4.2.2/build/cjs/vexflow.js"></script>
@@ -19,7 +19,7 @@
     <div class="card">
         <div class="header">
             <h1>
-                <span>🏔️</span> Ҡурай Таб <span>📜</span>
+                <span>📜</span> Ҡурай Таб <span>📜</span>
             </h1>
         </div>
         <div class="content">
@@ -75,17 +75,14 @@
             <label>🎼 Табулатура (цифры 0-5, * = передув на 7-ю ноту, ** = двойной)</label>
             <div class="tab-preview" id="tabResult">—</div>
             
-            <!-- Новая кнопка для отображения нотного стана -->
-            <button class="btn-convert" id="showNotationBtn">🎼 Показать нотный стан с нотами 🎵</button>
+            <button class="btn-convert" id="showNotationBtn">🎼 Показать нотный стан с нотами 🎼</button>
             
-            <!-- Контейнер для нотного стана VexFlow -->
             <div id="notationContainer" class="notation-container" style="display: none;">
                 <div id="staffCanvas"></div>
                 <div id="tabStaffCanvas"></div>
-                <button class="close-notation-btn" id="closeNotationBtn">✖ Закрыть</button>
+                <button class="copy-btn" id="closeNotationBtn">✖ Закрыть</button>
             </div>
             
-            <!-- Кнопки в одной строке: Заменить все (слева) и Копировать (справа) -->
             <div style="display: flex; justify-content: flex-end; gap: 12px; margin-top: 12px;">
                 <button id="actionBtn" class="copy-btn" style="margin-left: auto;">🔧 Заменить все ?</button>
                 <button id="copyBtn" class="copy-btn">📋 Копировать</button>
@@ -94,11 +91,13 @@
             <div id="transposeInfo" class="transpose-info"></div>
             <div class="footer-note">
                 <strong>Курай Таб 🍃</strong><br>
-                ©2026
+                ©2026 LaStick Project
             </div>
         </div>
     </div>
 
-    <script src="Kscript.js"></script>
+    <!-- Сначала загружаем ядро, потом модуль нотного стана -->
+    <script src="Kscript-core.js"></script>
+    <script src="Kscript-notation.js"></script>
 </body>
 </html>
