@@ -46,7 +46,7 @@
         return NOTE_ALIASES[lower] || null;
     }
     
-    // Функция для извлечения всех нот из текста с сохранением структуры (поддерживает слитные ноты)
+    // Функция для извлечения всех нот из текста с сохранением структуры
     function extractNotesWithPositions(text) {
         const lines = text.split(/\r?\n/);
         const result = [];
@@ -54,70 +54,33 @@
         for (let lineIdx = 0; lineIdx < lines.length; lineIdx++) {
             const line = lines[lineIdx];
             const segments = [];
-            let i = 0;
-            const len = line.length;
+            const regex = /[A-Za-zА-Яа-я#b♭♯]+/gu;
+            let lastIdx = 0, match;
             
-            while (i < len) {
-                // Пропускаем пробелы как текст
-                if (line[i] === ' ' || line[i] === '\t') {
-                    let start = i;
-                    while (i < len && (line[i] === ' ' || line[i] === '\t')) i++;
-                    segments.push({ type: 'text', content: line.substring(start, i) });
-                    continue;
-                }
+            while ((match = regex.exec(line)) !== null) {
+                const before = line.substring(lastIdx, match.index);
+                if (before) segments.push({ type: 'text', content: before });
                 
-                let matched = false;
+                const token = match[0];
+                const normalized = normalizeNote(token);
                 
-                // Те же паттерны для распознавания нот
-                const notePatterns = [
-                    /^[A-Ga-g]#/,
-                    /^[A-Ga-g]♯/,
-                    /^[A-Ga-g]b/,
-                    /^[A-Ga-g]♭/,
-                    /^до#|до♯|ре#|ре♯|ми#|ми♯|фа#|фа♯|соль#|соль♯|ля#|ля♯|си#|си♯/i,
-                    /^доб|до♭|реб|ре♭|миб|ми♭|фаб|фа♭|сольб|соль♭|ляб|ля♭|сиб|си♭/i,
-                    /^до|ре|ми|фа|соль|ля|си/i,
-                    /^[A-Ga-g]/
-                ];
+                segments.push({ 
+                    type: 'note', 
+                    original: token, 
+                    normalized: normalized,
+                    lineIdx: lineIdx,
+                    charStart: match.index,
+                    charEnd: match.index + token.length
+                });
                 
-                for (const pattern of notePatterns) {
-                    const match = line.substring(i).match(pattern);
-                    if (match && match[0].length > 0) {
-                        const token = match[0];
-                        const normalized = normalizeNote(token);
-                        
-                        segments.push({
-                            type: 'note',
-                            original: token,
-                            normalized: normalized,
-                            lineIdx: lineIdx,
-                            charStart: i,
-                            charEnd: i + token.length
-                        });
-                        
-                        i += token.length;
-                        matched = true;
-                        break;
-                    }
-                }
-                
-                if (!matched) {
-                    segments.push({ type: 'text', content: line[i] });
-                    i++;
-                }
+                lastIdx = match.index + token.length;
             }
             
-            // Восстанавливаем оригинальную строку для позиционирования
-            let originalLine = '';
-            for (const seg of segments) {
-                if (seg.type === 'text') {
-                    originalLine += seg.content;
-                } else if (seg.type === 'note') {
-                    originalLine += seg.original;
-                }
+            if (lastIdx < line.length) {
+                segments.push({ type: 'text', content: line.substring(lastIdx) });
             }
             
-            result.push({ lineIdx: lineIdx, originalLine: originalLine, segments: segments });
+            result.push({ lineIdx: lineIdx, originalLine: line, segments: segments });
         }
         
         return result;
@@ -366,73 +329,28 @@
         return { note: closestNote, distance: minDistance };
     }
     
-    // Парсинг текста с сохранением структуры (поддерживает слитные ноты типа DDD)
+    // Парсинг текста с сохранением структуры
     function parseNotesWithFormat(text) {
         const lines = text.split(/\r?\n/);
         const parsedLines = [];
         const allNormalized = [];
-        
         for (let line of lines) {
             const segments = [];
-            let i = 0;
-            const len = line.length;
-            
-            while (i < len) {
-                // Пропускаем пробелы и другие разделители как текст
-                if (line[i] === ' ' || line[i] === '\t') {
-                    let start = i;
-                    while (i < len && (line[i] === ' ' || line[i] === '\t')) i++;
-                    segments.push({ type: 'text', content: line.substring(start, i) });
-                    continue;
-                }
-                
-                // Проверяем, начинается ли с ноты
-                // Нота может быть: одна буква (C, D, E...) или буква со знаком #/b/♯/♭ (C#, Db...)
-                // или русское название (до, ре, ми, фа, соль, ля, си)
-                let matched = false;
-                
-                // Шаблоны для распознавания нот (сначала длинные, потом короткие)
-                const notePatterns = [
-                    /^[A-Ga-g]#/,      // C#
-                    /^[A-Ga-g]♯/,      // C♯
-                    /^[A-Ga-g]b/,      // Db
-                    /^[A-Ga-g]♭/,      // D♭
-                    /^до#|до♯|ре#|ре♯|ми#|ми♯|фа#|фа♯|соль#|соль♯|ля#|ля♯|си#|си♯/i,
-                    /^доб|до♭|реб|ре♭|миб|ми♭|фаб|фа♭|сольб|соль♭|ляб|ля♭|сиб|си♭/i,
-                    /^до|ре|ми|фа|соль|ля|си/i,
-                    /^[A-Ga-g]/         // Одиночная буква
-                ];
-                
-                for (const pattern of notePatterns) {
-                    const match = line.substring(i).match(pattern);
-                    if (match && match[0].length > 0) {
-                        const token = match[0];
-                        const lowerToken = token.toLowerCase();
-                        let norm = NOTE_ALIASES[lowerToken] || null;
-                        
-                        // Если нота не распознана по словарю, пробуем преобразовать вручную
-                        if (!norm && token.length === 1) {
-                            norm = token.toUpperCase();
-                        }
-                        
-                        segments.push({ type: 'note', original: token, normalized: norm });
-                        if (norm) allNormalized.push(norm);
-                        i += token.length;
-                        matched = true;
-                        break;
-                    }
-                }
-                
-                if (!matched) {
-                    // Не нота - добавляем как текст (один символ)
-                    segments.push({ type: 'text', content: line[i] });
-                    i++;
-                }
+            const regex = /[A-Za-zА-Яа-я#b♭♯]+/gu;
+            let lastIdx = 0, match;
+            while ((match = regex.exec(line)) !== null) {
+                const before = line.substring(lastIdx, match.index);
+                if (before) segments.push({ type: 'text', content: before });
+                const token = match[0].toLowerCase();
+                let norm = NOTE_ALIASES[token] || null;
+                if (!norm && token.length === 1 && /[abcdefg]/.test(token)) norm = token.toUpperCase();
+                segments.push({ type: 'note', original: token, normalized: norm });
+                if (norm) allNormalized.push(norm);
+                lastIdx = match.index + token.length;
             }
-            
+            if (lastIdx < line.length) segments.push({ type: 'text', content: line.substring(lastIdx) });
             parsedLines.push(segments);
         }
-        
         return { parsedLines, allNotes: allNormalized };
     }
     
