@@ -145,6 +145,141 @@ textarea:focus {
     box-shadow: 0 0 8px rgba(198, 137, 75, 0.4);
 }
 
+/* ===== ПАНЕЛЬ ТРАНСПОНИРОВАНИЯ МЕЛОДИИ ===== */
+.transpose-melody-panel {
+    background: #f5e6d3;
+    border-radius: 10px;
+    padding: 1rem 1.5rem;
+    margin: 18px 0;
+    border: 2px solid #e8d5b5;
+}
+
+.transpose-melody-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 12px;
+    flex-wrap: wrap;
+}
+
+.transpose-melody-header span {
+    font-weight: bold;
+    color: #8b5a2b;
+    border-left: 4px solid #d4a259;
+    padding-left: 14px;
+}
+
+.transpose-control-group {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.transpose-btn {
+    background: #9b6e3e;
+    border: none;
+    width: 40px;
+    height: 40px;
+    border-radius: 10px;
+    font-weight: bold;
+    cursor: pointer;
+    font-size: 1.3rem;
+    transition: all 0.1s;
+    box-shadow: 0 4px 0 #5c381a;
+    color: #f5e6d3;
+}
+
+.transpose-btn:active {
+    transform: translateY(2px);
+    box-shadow: 0 2px 0 #5c381a;
+}
+
+.transpose-btn:hover {
+    background: #c69954;
+}
+
+.transpose-value {
+    background: #fff5e6;
+    padding: 6px 16px;
+    border-radius: 8px;
+    font-weight: bold;
+    font-size: 1.1rem;
+    font-family: monospace;
+    color: #c6894b;
+    min-width: 80px;
+    text-align: center;
+}
+
+.reset-transpose-btn {
+    background: #9b6e3e;
+    border: none;
+    padding: 8px 20px;
+    border-radius: 40px;
+    font-weight: bold;
+    cursor: pointer;
+    color: #fff3e0;
+    transition: all 0.2s;
+    box-shadow: 0 4px 0 #5c381a;
+}
+
+.reset-transpose-btn:active {
+    transform: translateY(2px);
+    box-shadow: 0 2px 0 #5c381a;
+}
+
+.reset-transpose-btn:hover {
+    background: #c69954;
+}
+
+.auto-transpose-group {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-top: 10px;
+    padding-top: 10px;
+    border-top: 1px dashed #e8d5b5;
+}
+
+.auto-transpose-group select {
+    background: #fff5e6;
+    border: 2px solid #e8d5b5;
+    padding: 8px 16px;
+    border-radius: 8px;
+    font-weight: bold;
+    color: #8b5a2b;
+    cursor: pointer;
+}
+
+.auto-transpose-group button {
+    background: #9b6e3e;
+    border: none;
+    padding: 8px 20px;
+    border-radius: 40px;
+    font-weight: bold;
+    cursor: pointer;
+    color: #fff3e0;
+    transition: all 0.2s;
+    box-shadow: 0 4px 0 #5c381a;
+}
+
+.auto-transpose-group button:active {
+    transform: translateY(2px);
+    box-shadow: 0 2px 0 #5c381a;
+}
+
+.auto-transpose-group button:hover {
+    background: #c69954;
+}
+
+.transpose-status {
+    font-size: 0.75rem;
+    color: #b8956a;
+    margin-top: 8px;
+    font-style: italic;
+}
+
 /* ===== ЕДИНЫЙ СТИЛЬ ВСЕХ БЛОКОВ ===== */
 .tonality-panel,
 .kurai-suggest,
@@ -173,7 +308,6 @@ textarea:focus {
     background: #fff5e6;
     padding: 6px 18px;
     border-radius: 8px;
-    
 }
 
 .tonality-badge {
@@ -205,7 +339,6 @@ textarea:focus {
     transition: all 0.2s;
     box-shadow: 0 6px 0 #5c381a;
 }
-
 
 .transpose-select:active {
     transform: translateY(3px);
@@ -269,10 +402,8 @@ textarea:focus {
 }
 
 .kurai-badge.active {
-    transform: translateY(2px);
-    background: #c69954;
+    transform: translateY(4px);
     color: #fff3e0;
-    box-shadow: 0 6px 0 #a5723a;
 }
 
 .kurai-badge:hover {
@@ -456,7 +587,7 @@ textarea:focus {
     background: #ffffff;
     border-radius: 10px;
     padding: 20px;
-    margin: 15px ;
+    margin: 15px;
     border: 2px solid #e8d5b5;
     box-shadow: 0 6px 14px rgba(0, 0, 0, 0.1);
     overflow-x: auto;
@@ -473,7 +604,6 @@ textarea:focus {
     display: block;
     margin: 0 auto;
 }
-
 
 .error-message {
     color: #b5622a;
@@ -592,5 +722,27 @@ textarea:focus {
     .fingering-label {
         font-size: 14px;
         width: 18px;
+    }
+    
+    /* Адаптация панели транспонирования */
+    .transpose-melody-panel {
+        padding: 0.8rem 1rem;
+    }
+    
+    .transpose-control-group {
+        justify-content: center;
+    }
+    
+    .auto-transpose-group {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    
+    .auto-transpose-group select {
+        width: 100%;
+    }
+    
+    .auto-transpose-group button {
+        width: 100%;
     }
 }

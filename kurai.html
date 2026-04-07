@@ -26,6 +26,38 @@
             <label>🎵 Введите ноты (C C# D D# E F F# G G# A A# B, До Ре Ми...)</label>
             <textarea id="notesInput" rows="5"></textarea>
 
+            <!-- Панель транспонирования мелодии -->
+            <div class="transpose-melody-panel">
+                <div class="transpose-melody-header">
+                    <span>🎵 Транспонирование мелодии</span>
+                </div>
+                <div class="transpose-control-group">
+                    <button class="transpose-btn" id="transposeDownBtn">−</button>
+                    <span class="transpose-value" id="transposeValue">0</span>
+                    <button class="transpose-btn" id="transposeUpBtn">+</button>
+                    <button class="reset-transpose-btn" id="resetTransposeBtn">⟳ Сбросить</button>
+                </div>
+                <div class="auto-transpose-group">
+                    <span>🎯 Подобрать транспонирование для курая:</span>
+                    <select id="targetKuraiForAuto">
+                        <option value="C">C (До мажор)</option>
+                        <option value="C#">C# (До-диез)</option>
+                        <option value="D">D (Ре мажор)</option>
+                        <option value="D#">D# (Ре-диез/Eb)</option>
+                        <option value="E">E (Ми мажор)</option>
+                        <option value="F">F (Фа мажор)</option>
+                        <option value="F#">F# (Фа-диез)</option>
+                        <option value="G">G (Соль мажор)</option>
+                        <option value="G#">G# (Соль-диез/Ab)</option>
+                        <option value="A">A (Ля мажор)</option>
+                        <option value="A#">A# (Ля-диез/Bb)</option>
+                        <option value="B">B (Си мажор)</option>
+                    </select>
+                    <button id="autoTransposeBtn">🎼 Автоподбор</button>
+                </div>
+                <div class="transpose-status" id="transposeStatus"></div>
+            </div>
+
             <div class="tonality-panel">
                 <div class="tonality-info">
                     <span>🎼 Исходная тональность (первая нота):</span>

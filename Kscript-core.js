@@ -36,6 +36,248 @@
         'sol': 'G', 'la': 'A', 'ti': 'B', 'si': 'B'
     };
     
+    // --------------------------------------------------------------
+    // Функции для транспонирования мелодии
+    // --------------------------------------------------------------
+    
+    // Функция для нормализации ноты
+    function normalizeNote(token) {
+        const lower = token.toLowerCase();
+        return NOTE_ALIASES[lower] || null;
+    }
+    
+    // Функция для извлечения всех нот из текста с сохранением структуры (поддерживает слитные ноты)
+    function extractNotesWithPositions(text) {
+        const lines = text.split(/\r?\n/);
+        const result = [];
+        
+        for (let lineIdx = 0; lineIdx < lines.length; lineIdx++) {
+            const line = lines[lineIdx];
+            const segments = [];
+            let i = 0;
+            const len = line.length;
+            
+            while (i < len) {
+                // Пропускаем пробелы как текст
+                if (line[i] === ' ' || line[i] === '\t') {
+                    let start = i;
+                    while (i < len && (line[i] === ' ' || line[i] === '\t')) i++;
+                    segments.push({ type: 'text', content: line.substring(start, i) });
+                    continue;
+                }
+                
+                let matched = false;
+                
+                // Те же паттерны для распознавания нот
+                const notePatterns = [
+                    /^[A-Ga-g]#/,
+                    /^[A-Ga-g]♯/,
+                    /^[A-Ga-g]b/,
+                    /^[A-Ga-g]♭/,
+                    /^до#|до♯|ре#|ре♯|ми#|ми♯|фа#|фа♯|соль#|соль♯|ля#|ля♯|си#|си♯/i,
+                    /^доб|до♭|реб|ре♭|миб|ми♭|фаб|фа♭|сольб|соль♭|ляб|ля♭|сиб|си♭/i,
+                    /^до|ре|ми|фа|соль|ля|си/i,
+                    /^[A-Ga-g]/
+                ];
+                
+                for (const pattern of notePatterns) {
+                    const match = line.substring(i).match(pattern);
+                    if (match && match[0].length > 0) {
+                        const token = match[0];
+                        const normalized = normalizeNote(token);
+                        
+                        segments.push({
+                            type: 'note',
+                            original: token,
+                            normalized: normalized,
+                            lineIdx: lineIdx,
+                            charStart: i,
+                            charEnd: i + token.length
+                        });
+                        
+                        i += token.length;
+                        matched = true;
+                        break;
+                    }
+                }
+                
+                if (!matched) {
+                    segments.push({ type: 'text', content: line[i] });
+                    i++;
+                }
+            }
+            
+            // Восстанавливаем оригинальную строку для позиционирования
+            let originalLine = '';
+            for (const seg of segments) {
+                if (seg.type === 'text') {
+                    originalLine += seg.content;
+                } else if (seg.type === 'note') {
+                    originalLine += seg.original;
+                }
+            }
+            
+            result.push({ lineIdx: lineIdx, originalLine: originalLine, segments: segments });
+        }
+        
+        return result;
+    }
+    
+    // Функция для транспонирования одной ноты
+    function transposeSingleNote(note, semitones) {
+        const idx = CHROMATIC.indexOf(note);
+        if (idx === -1) return note;
+        const newIdx = (idx + semitones + 120) % 12;
+        return CHROMATIC[newIdx];
+    }
+    
+    // Функция для транспонирования всего текста
+    function transposeMelody(text, semitones) {
+        if (semitones === 0) return text;
+        
+        const parsedLines = extractNotesWithPositions(text);
+        const newLines = [];
+        
+        for (const lineData of parsedLines) {
+            let newLine = '';
+            let currentPos = 0;
+            
+            for (const seg of lineData.segments) {
+                if (seg.type === 'text') {
+                    newLine += seg.content;
+                    currentPos += seg.content.length;
+                } else if (seg.type === 'note' && seg.normalized) {
+                    // Добавляем текст до ноты
+                    const beforeText = lineData.originalLine.substring(currentPos, seg.charStart);
+                    newLine += beforeText;
+                    
+                    // Транспонируем ноту
+                    const transposedNote = transposeSingleNote(seg.normalized, semitones);
+                    
+                    // Сохраняем оригинальный регистр
+                    let outputNote;
+                    if (seg.original === seg.original.toUpperCase() && seg.original.length === 1) {
+                        outputNote = transposedNote;
+                    } else if (seg.original[0] === seg.original[0].toUpperCase() && seg.original.length > 1) {
+                        outputNote = transposedNote;
+                    } else {
+                        outputNote = transposedNote.toLowerCase();
+                    }
+                    
+                    newLine += outputNote;
+                    currentPos = seg.charEnd;
+                }
+            }
+            
+            // Добавляем остаток строки
+            if (currentPos < lineData.originalLine.length) {
+                newLine += lineData.originalLine.substring(currentPos);
+            }
+            
+            newLines.push(newLine);
+        }
+        
+        return newLines.join('\n');
+    }
+    
+    // Функция для получения всех нот из текста (простая)
+    function getAllNotesFromText(text) {
+        const notes = [];
+        const regex = /[A-Za-zА-Яа-я#b♭♯]+/gu;
+        let match;
+        while ((match = regex.exec(text)) !== null) {
+            const normalized = normalizeNote(match[0]);
+            if (normalized) notes.push(normalized);
+        }
+        return notes;
+    }
+    
+    function getNoteDifficulty(note, targetKuraiKey) {
+        const scaleNotes = KURAI_SCALES[targetKuraiKey]?.notes;
+        if (!scaleNotes) return 3;
+        
+        // Проверяем основные ноты (0-5)
+        if (scaleNotes.includes(note)) {
+            return 0; // Основная нота - лучший вариант
+        }
+        
+        // Проверяем передувы
+        const fifthNote = scaleNotes[5];
+        const idxFifth = CHROMATIC.indexOf(fifthNote);
+        if (idxFifth !== -1) {
+            const seventhNote = CHROMATIC[(idxFifth + 1) % 12];
+            if (note === seventhNote) {
+                return 1; // Передув (*) - приемлемо, но хуже основной ноты
+            }
+            const doubleNote = CHROMATIC[(idxFifth + 2) % 12];
+            if (note === doubleNote) {
+                return 2; // Двойной передув (**) - сложно, избегаем если возможно
+            }
+        }
+        
+        return 3; // Нота недоступна
+    }
+     
+    // Функция для поиска оптимального транспонирования под целевой курай
+    // Работает от оригинальной мелодии (без учета текущего транспонирования)
+    function findOptimalTransposition(originalNotes, targetKuraiKey) {
+        if (!originalNotes.length) return 0;
+        
+        const scaleNotes = KURAI_SCALES[targetKuraiKey]?.notes || [];
+        if (!scaleNotes.length) return 0;
+        
+        let bestShift = 0;
+        let bestScore = -Infinity;
+        
+        // Проверяем все возможные транспонирования от -6 до +6
+        for (let shift = -6; shift <= 6; shift++) {
+            let totalScore = 0;
+            let inaccessibleCount = 0;
+            let overblowCount = 0;
+            let doubleOverblowCount = 0;
+            
+            for (const note of originalNotes) {
+                const transposedNote = transposeSingleNote(note, shift);
+                const difficulty = getNoteDifficulty(transposedNote, targetKuraiKey);
+                
+                if (difficulty === 0) {
+                    // Основная нота: +10 очков
+                    totalScore += 10;
+                } else if (difficulty === 1) {
+                    // Передув: +5 очков (хуже основной ноты, но приемлемо)
+                    totalScore += 5;
+                    overblowCount++;
+                } else if (difficulty === 2) {
+                    // Двойной передув: +1 очко (плохо, избегаем)
+                    totalScore += 1;
+                    doubleOverblowCount++;
+                } else {
+                    // Недоступна: -20 очков (сильный штраф)
+                    totalScore -= 20;
+                    inaccessibleCount++;
+                }
+            }
+            
+            // Небольшой штраф за использование передувов (чем меньше, тем лучше)
+            totalScore -= overblowCount * 0.5;
+            totalScore -= doubleOverblowCount * 2;
+            
+            // Штраф за недоступные ноты (уже учтено в -20, но добавим еще)
+            if (inaccessibleCount > 0) {
+                totalScore -= inaccessibleCount * 5;
+            }
+            
+            // Предпочитаем сдвиги с меньшим абсолютным значением при равной оценке
+            if (totalScore > bestScore || 
+                (totalScore === bestScore && Math.abs(shift) < Math.abs(bestShift))) {
+                bestScore = totalScore;
+                bestShift = shift;
+            }
+        }
+        
+        return bestShift;
+    }
+    
     // Вспомогательные функции
     function transposeNote(note, semitones) {
         const idx = CHROMATIC.indexOf(note);
@@ -124,28 +366,73 @@
         return { note: closestNote, distance: minDistance };
     }
     
-    // Парсинг текста с сохранением структуры
+    // Парсинг текста с сохранением структуры (поддерживает слитные ноты типа DDD)
     function parseNotesWithFormat(text) {
         const lines = text.split(/\r?\n/);
         const parsedLines = [];
         const allNormalized = [];
+        
         for (let line of lines) {
             const segments = [];
-            const regex = /[A-Za-zА-Яа-я#b♭♯]+/gu;
-            let lastIdx = 0, match;
-            while ((match = regex.exec(line)) !== null) {
-                const before = line.substring(lastIdx, match.index);
-                if (before) segments.push({ type: 'text', content: before });
-                const token = match[0].toLowerCase();
-                let norm = NOTE_ALIASES[token] || null;
-                if (!norm && token.length === 1 && /[abcdefg]/.test(token)) norm = token.toUpperCase();
-                segments.push({ type: 'note', original: token, normalized: norm });
-                if (norm) allNormalized.push(norm);
-                lastIdx = match.index + token.length;
+            let i = 0;
+            const len = line.length;
+            
+            while (i < len) {
+                // Пропускаем пробелы и другие разделители как текст
+                if (line[i] === ' ' || line[i] === '\t') {
+                    let start = i;
+                    while (i < len && (line[i] === ' ' || line[i] === '\t')) i++;
+                    segments.push({ type: 'text', content: line.substring(start, i) });
+                    continue;
+                }
+                
+                // Проверяем, начинается ли с ноты
+                // Нота может быть: одна буква (C, D, E...) или буква со знаком #/b/♯/♭ (C#, Db...)
+                // или русское название (до, ре, ми, фа, соль, ля, си)
+                let matched = false;
+                
+                // Шаблоны для распознавания нот (сначала длинные, потом короткие)
+                const notePatterns = [
+                    /^[A-Ga-g]#/,      // C#
+                    /^[A-Ga-g]♯/,      // C♯
+                    /^[A-Ga-g]b/,      // Db
+                    /^[A-Ga-g]♭/,      // D♭
+                    /^до#|до♯|ре#|ре♯|ми#|ми♯|фа#|фа♯|соль#|соль♯|ля#|ля♯|си#|си♯/i,
+                    /^доб|до♭|реб|ре♭|миб|ми♭|фаб|фа♭|сольб|соль♭|ляб|ля♭|сиб|си♭/i,
+                    /^до|ре|ми|фа|соль|ля|си/i,
+                    /^[A-Ga-g]/         // Одиночная буква
+                ];
+                
+                for (const pattern of notePatterns) {
+                    const match = line.substring(i).match(pattern);
+                    if (match && match[0].length > 0) {
+                        const token = match[0];
+                        const lowerToken = token.toLowerCase();
+                        let norm = NOTE_ALIASES[lowerToken] || null;
+                        
+                        // Если нота не распознана по словарю, пробуем преобразовать вручную
+                        if (!norm && token.length === 1) {
+                            norm = token.toUpperCase();
+                        }
+                        
+                        segments.push({ type: 'note', original: token, normalized: norm });
+                        if (norm) allNormalized.push(norm);
+                        i += token.length;
+                        matched = true;
+                        break;
+                    }
+                }
+                
+                if (!matched) {
+                    // Не нота - добавляем как текст (один символ)
+                    segments.push({ type: 'text', content: line[i] });
+                    i++;
+                }
             }
-            if (lastIdx < line.length) segments.push({ type: 'text', content: line.substring(lastIdx) });
+            
             parsedLines.push(segments);
         }
+        
         return { parsedLines, allNotes: allNormalized };
     }
     
@@ -219,7 +506,7 @@
         const problemNotes = getAllProblemNotes(text, currentKuraiKey, currentOctave);
         
         if (problemNotes.length === 0) {
-            return; // Просто ничего не делаем
+            return;
         }
         
         for (const problem of problemNotes) {
@@ -403,6 +690,11 @@
     let currentOctave = 4;
     let manualReplacements = {};
     
+    // Переменные для транспонирования мелодии
+    let currentTransposeShift = 0;
+    let originalMelodyText = '';      // Оригинальный текст (нетранспонированный)
+    let originalNotesArray = [];       // Кэш оригинальных нот для автоподбора
+    
     // Функция для вызова рендеринга нотного стана (будет переопределена из второго файла)
     let renderNotationCallback = null;
     
@@ -418,14 +710,12 @@
         
         const actionBtn = document.getElementById('actionBtn');
         if (actionBtn) {
-            // Если есть замены - показываем кнопку "Вернуть"
             if (hasReplacements) {
                 actionBtn.style.display = 'inline-block';
                 actionBtn.innerHTML = `🔄 Вернуть (${Object.keys(manualReplacements).length})`;
                 actionBtn.title = 'Сбросить все замены';
                 actionBtn.disabled = false;
             } 
-            // Если нет замен, но есть проблемные ноты - показываем "Заменить все ?"
             else if (hasProblemNotes) {
                 actionBtn.style.display = 'inline-block';
                 const problemCount = getAllProblemNotes(text, currentKuraiKey, currentOctave).length;
@@ -433,11 +723,179 @@
                 actionBtn.title = 'Автоматически заменить все недоступные ноты';
                 actionBtn.disabled = false;
             } 
-            // Если все ноты доступны и нет замен - скрываем кнопку
             else {
                 actionBtn.style.display = 'none';
             }
         }
+    }
+    
+    // Обновление статуса транспонирования
+    function updateTransposeStatus() {
+        const transposeStatus = document.getElementById('transposeStatus');
+        if (transposeStatus) {
+            if (currentTransposeShift === 0) {
+                transposeStatus.innerHTML = '';
+            } else {
+                const direction = currentTransposeShift > 0 ? 'вверх' : 'вниз';
+                const absShift = Math.abs(currentTransposeShift);
+                transposeStatus.innerHTML = `✨ Транспонировано ${direction} на ${absShift} ${absShift === 1 ? 'полутон' : absShift < 5 ? 'полутона' : 'полутонов'}`;
+            }
+        }
+        
+        const transposeValue = document.getElementById('transposeValue');
+        if (transposeValue) {
+            transposeValue.textContent = currentTransposeShift;
+        }
+    }
+    
+    // Обновление кэша оригинальных нот
+    function updateOriginalNotesCache() {
+        if (originalMelodyText) {
+            originalNotesArray = getAllNotesFromText(originalMelodyText);
+        } else {
+            const text = document.getElementById('notesInput').value;
+            originalNotesArray = getAllNotesFromText(text);
+        }
+    }
+    
+    // Применение транспонирования к мелодии
+    function applyTransposition() {
+        if (originalMelodyText === '') {
+            originalMelodyText = document.getElementById('notesInput').value;
+            updateOriginalNotesCache();
+        }
+        
+        const newText = transposeMelody(originalMelodyText, currentTransposeShift);
+        const notesInput = document.getElementById('notesInput');
+        notesInput.value = newText;
+        
+        updateTransposeStatus();
+        
+        // Сбрасываем замены при транспонировании
+        manualReplacements = {};
+        performRenderWithReplacements();
+    }
+    
+    // Сброс транспонирования
+    function resetTransposition() {
+        currentTransposeShift = 0;
+        if (originalMelodyText !== '') {
+            document.getElementById('notesInput').value = originalMelodyText;
+        }
+        updateTransposeStatus();
+        manualReplacements = {};
+        performRenderWithReplacements();
+    }
+    
+    // Автоподбор транспонирования для целевого курая
+    // ВАЖНО: использует оригинальную мелодию (originalNotesArray), а не текущую транспонированную
+    function autoTransposeForKurai(targetKey) {
+        // Обновляем кэш оригинальных нот если нужно
+        if (originalNotesArray.length === 0 && originalMelodyText) {
+            updateOriginalNotesCache();
+        }
+        
+        // Если нет сохраненной оригинальной мелодии, используем текущую как оригинал
+        if (originalNotesArray.length === 0) {
+            const currentText = document.getElementById('notesInput').value;
+            originalMelodyText = currentText;
+            originalNotesArray = getAllNotesFromText(currentText);
+        }
+        
+        if (originalNotesArray.length === 0) {
+            alert('Нет нот для анализа');
+            return false;
+        }
+        
+        // Ищем оптимальный сдвиг на основе ОРИГИНАЛЬНЫХ нот
+        const bestShift = findOptimalTransposition(originalNotesArray, targetKey);
+        
+        if (bestShift !== 0) {
+            currentTransposeShift = bestShift;
+            applyTransposition();
+            
+            const transposeStatus = document.getElementById('transposeStatus');
+            if (transposeStatus) {
+                const direction = bestShift > 0 ? 'вверх' : 'вниз';
+                const absShift = Math.abs(bestShift);
+                transposeStatus.innerHTML = `🎯 Автоподбор: транспонировано ${direction} на ${absShift} ${absShift === 1 ? 'полутон' : absShift < 5 ? 'полутона' : 'полутонов'} для курая ${targetKey}`;
+            }
+            return true;
+        } else {
+            const transposeStatus = document.getElementById('transposeStatus');
+            if (transposeStatus) {
+                transposeStatus.innerHTML = `✅ Мелодия уже подходит для курая ${targetKey} (транспонирование не требуется)`;
+            }
+            return false;
+        }
+    }
+    
+    // Сохранение оригинальной мелодии при ручном изменении
+    function saveOriginalMelody() {
+        const currentText = document.getElementById('notesInput').value;
+        // Сохраняем только если нет активного транспонирования
+        if (currentTransposeShift === 0) {
+            originalMelodyText = currentText;
+            originalNotesArray = getAllNotesFromText(currentText);
+        }
+    }
+    
+    // Инициализация панели транспонирования
+    function initTransposePanel() {
+        const transposeDownBtn = document.getElementById('transposeDownBtn');
+        const transposeUpBtn = document.getElementById('transposeUpBtn');
+        const resetTransposeBtn = document.getElementById('resetTransposeBtn');
+        const autoTransposeBtn = document.getElementById('autoTransposeBtn');
+        const targetKuraiForAuto = document.getElementById('targetKuraiForAuto');
+        const notesInput = document.getElementById('notesInput');
+        
+        if (transposeDownBtn) {
+            transposeDownBtn.addEventListener('click', () => {
+                if (currentTransposeShift > -12) {
+                    currentTransposeShift--;
+                    applyTransposition();
+                }
+            });
+        }
+        
+        if (transposeUpBtn) {
+            transposeUpBtn.addEventListener('click', () => {
+                if (currentTransposeShift < 12) {
+                    currentTransposeShift++;
+                    applyTransposition();
+                }
+            });
+        }
+        
+        if (resetTransposeBtn) {
+            resetTransposeBtn.addEventListener('click', () => {
+                resetTransposition();
+            });
+        }
+        
+        if (autoTransposeBtn && targetKuraiForAuto) {
+            autoTransposeBtn.addEventListener('click', () => {
+                autoTransposeForKurai(targetKuraiForAuto.value);
+            });
+        }
+        
+        if (notesInput) {
+            // Сохраняем оригинал при ручном изменении (когда нет активного транспонирования)
+            notesInput.addEventListener('input', function() {
+                if (currentTransposeShift === 0) {
+                    originalMelodyText = notesInput.value;
+                    originalNotesArray = getAllNotesFromText(originalMelodyText);
+                }
+            });
+        }
+        
+        // Инициализация оригинального текста
+        if (notesInput) {
+            originalMelodyText = notesInput.value;
+            originalNotesArray = getAllNotesFromText(originalMelodyText);
+        }
+        
+        updateTransposeStatus();
     }
     
     function performRenderWithReplacements() {
@@ -491,7 +949,18 @@
         parseNotesWithFormat: parseNotesWithFormat,
         getNoteSequenceFromLine: getNoteSequenceFromLine,
         performRenderWithReplacements: performRenderWithReplacements,
-        setRenderNotationCallback: setRenderNotationCallback
+        setRenderNotationCallback: setRenderNotationCallback,
+        // Экспорт функций транспонирования
+        transposeMelody: transposeMelody,
+        autoTransposeForKurai: autoTransposeForKurai,
+        getCurrentTransposeShift: () => currentTransposeShift,
+        resetTransposition: resetTransposition,
+        saveOriginalMelody: saveOriginalMelody,
+        // Экспорт звукорядов
+        getKuraiScales: () => KURAI_SCALES,
+        getChromatic: () => CHROMATIC,
+        // Для отладки
+        getOriginalNotes: () => [...originalNotesArray]
     };
     
     // --------------------------------------------------------------
@@ -560,10 +1029,15 @@
                 autoReplaceAllProblems();
             }
         });
+        
+        // Инициализация панели транспонирования
+        initTransposePanel();
     }
     
     // Пример мелодии
-    document.getElementById('notesInput').value = `D-D D C`;
+    document.getElementById('notesInput').value = `F D F D F G F F D F D C A`;
+    originalMelodyText = `F D F D F G F F D F D C A`;
+    originalNotesArray = getAllNotesFromText(originalMelodyText);
     
     currentKuraiKey = 'C';
     currentOctave = 4;
