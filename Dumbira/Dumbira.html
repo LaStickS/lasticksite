@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+    <title>Табулатор для башкирской думбыры</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400;14..32,500;14..32,600;14..32,700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="Dstyle.css">
+</head>
+<body>
+<div class="app-container">
+    <header class="hero">
+        <h1><span>📜</span> Табулатор для башкирской думбыры</h1>
+        <p class="subtitle">3 струны · Лады 0–24 · Умный подбор струн · Чёткая табулатура</p>
+    </header>
+
+    <main>
+        <!-- Карточка строя -->
+        <div class="card">
+            <div class="card-header">
+                <h2>🎸 Строй инструмента</h2>
+                <span class="badge">Строй</span>
+            </div>
+            <div class="tuning-selector">
+                <label for="tuning-preset-select">Выберите строй:</label>
+                <select id="tuning-preset-select" class="tuning-select">
+                    <option value="standard">Стандартный (D4 A3 D3)</option>
+                    <option value="open-g" selected>Open G (D4 G3 D3)</option>
+                    <option value="quartal">Квартовый (G3 C3 F3)</option>
+                    <option value="custom">Кастомный строй</option>
+                </select>
+            </div>
+            <div id="custom-tuning-panel" class="custom-tuning" style="display: none;">
+                <div class="string-inputs">
+                    <div class="string-field">
+                        <label>Струна 1 (нижняя)</label>
+                        <input type="text" id="string1-custom" placeholder="D4, F#4, Bb3" maxlength="6">
+                    </div>
+                    <div class="string-field">
+                        <label>Струна 2 (средняя)</label>
+                        <input type="text" id="string2-custom" placeholder="A3, G#3, C4" maxlength="6">
+                    </div>
+                    <div class="string-field">
+                        <label>Струна 3 (верхняя)</label>
+                        <input type="text" id="string3-custom" placeholder="D3, F3, B2" maxlength="6">
+                    </div>
+                </div>
+                <button id="apply-custom-tuning" class="btn-secondary">✓ Применить кастомный строй</button>
+            </div>
+            <div class="current-tuning">
+                <span class="label">Текущий строй:</span>
+                <span id="tuning-display" class="tuning-value">D4 · G3 · D3</span>
+            </div>
+        </div>
+
+        <!-- Карточка ввода мелодии -->
+        <div class="card">
+            <div class="card-header">
+                <h2>📝 Ввод мелодии</h2>
+                <span class="badge">Ноты</span>
+            </div>
+            <div class="input-hint">
+                <small>Поддерживаются: C4, D#4, F5, a3, до, ре#, ми-бемоль, фа, соль, ля, си</small>
+            </div>
+            <textarea id="melody-input" rows="4" placeholder="Пример:&#10;G4 B4 B4 G4 A4 G4&#10;или&#10;C4 D#4 F4 G4 A4 B4 C5"></textarea>
+            <div class="button-group">
+                <button id="generate-tab" class="btn-primary">🎼 Показать табулатуру</button>
+                <button id="clear-input" class="btn-outline">Очистить</button>
+            </div>
+            <div id="error-message" class="error-box" style="display: none;"></div>
+        </div>
+
+        <!-- Карточка табулатуры -->
+        <div class="card tab-card">
+            <div class="card-header">
+                <h2>📜 Табулатура (3 струны)</h2>
+                <span class="badge">Ноты цифрами</span>
+            </div>
+            
+            <!-- Десктопная панель управления -->
+            <div class="controls-row desktop-controls">
+                <div class="control-section">
+                    <div class="control-label">🎼 Транспонирование (полутон)</div>
+                    <div class="control-buttons">
+                        <button id="transpose-down" class="circle-btn" title="Вниз на полтона">−1</button>
+                        <span id="transpose-value" class="control-value">0</span>
+                        <button id="transpose-up" class="circle-btn" title="Вверх на полтона">+1</button>
+                        <button id="reset-transpose" class="circle-btn reset" title="Сбросить">↺</button>
+                    </div>
+                </div>
+                <div class="control-section">
+                    <div class="control-label">🎚️ Октава (±12 полутонов)</div>
+                    <div class="control-buttons">
+                        <button id="octave-down" class="circle-btn octave-btn" title="Октава вниз">−1</button>
+                        <span id="octave-value" class="control-value">0</span>
+                        <button id="octave-up" class="circle-btn octave-btn" title="Октава вверх">+1</button>
+                        <button id="reset-octave" class="circle-btn reset" title="Сбросить">↺</button>
+                    </div>
+                </div>
+                <div class="action-section">
+                    <div class="control-label"> Действия</div>
+                    <div class="action-row">
+                        <button id="play-alternative" class="btn-alternative-desktop">🎹 Сыграть иначе</button>
+                        <button id="copy-tab-btn" class="btn-copy-desktop">📋 Копировать</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Мобильная панель управления -->
+            <div class="mobile-controls">
+                <div class="mobile-controls-row">
+                    <div class="control-section mobile-section">
+                        <div class="control-label">🎼 Транспонирование (полутон)</div>
+                        <div class="control-buttons">
+                            <button id="transpose-down-mobile" class="circle-btn" title="Вниз на полтона">−1</button>
+                            <span id="transpose-value-mobile" class="control-value">0</span>
+                            <button id="transpose-up-mobile" class="circle-btn" title="Вверх на полтона">+1</button>
+                            <button id="reset-transpose-mobile" class="circle-btn reset" title="Сбросить">↺</button>
+                        </div>
+                    </div>
+                    <div class="control-section mobile-section">
+                        <div class="control-label">🎚️ Октава (±12 полутонов)</div>
+                        <div class="control-buttons">
+                            <button id="octave-down-mobile" class="circle-btn octave-btn" title="Октава вниз">−1</button>
+                            <span id="octave-value-mobile" class="control-value">0</span>
+                            <button id="octave-up-mobile" class="circle-btn octave-btn" title="Октава вверх">+1</button>
+                            <button id="reset-octave-mobile" class="circle-btn reset" title="Сбросить">↺</button>
+                        </div>
+                    </div>
+                </div>
+                <div class="mobile-action-row">
+                    <button id="play-alternative-mobile" class="btn-alternative-desktop">🎹 Сыграть иначе</button>
+                    <button id="copy-tab-btn-mobile" class="btn-copy-desktop">📋 Копировать</button>
+                </div>
+            </div>
+
+            <div id="ascii-tab-container" class="ascii-tab-content-modern">
+                <span class="placeholder-text">📃 Введите ноты и нажмите «Показать табулатуру»</span>
+            </div>
+        </div>
+    </main>
+    <footer>
+        <p>©2026 LaStick Project</p>
+    </footer>
+</div>
+
+<script src="Dscript.js"></script>
+</body>
+</html>
